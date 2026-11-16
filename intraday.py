@@ -168,17 +168,20 @@ def summary(rows):
                 pf=w / ls if ls else np.inf, dd=(np.maximum.accumulate(np.maximum(eq, 0)) - eq).max(),
                 sharpe=pnl.mean() / pnl.std() * np.sqrt(252) if pnl.std() else 0, avg=np.mean(trades))
 
-def prop_eval(rows, contracts, target=3000, max_loss=2000, consistency=0.5):
-    """Start an evaluation on every day; trailing max loss follows the end-of-day high
-    (stops trailing at break-even) and is enforced intraday. Returns pass/fail/open rates."""
+def prop_eval(rows, contracts, target=3000, max_loss=2000, consistency=0.5, mode="intraday"):
+    """Start an evaluation on every day. The max-loss floor follows the end-of-day high and
+    stops at break-even. mode: "intraday" = touching the floor during the day fails;
+    "eod" = only the end-of-day balance is checked; "static" = eod check, floor never moves."""
     res, days_to = [], []
     for s in range(len(rows)):
         bal, peak, best, out = 0.0, 0.0, 0.0, "open"
         for k, (pnl, worst, _) in enumerate(rows[s:]):
-            floor = min(peak - max_loss, 0.0)
-            if bal + worst * contracts <= floor:
+            floor = -max_loss if mode == "static" else min(peak - max_loss, 0.0)
+            if mode == "intraday" and bal + worst * contracts <= floor:
                 out = "fail"; break
             bal += pnl * contracts
+            if bal <= floor:
+                out = "fail"; break
             best = max(best, pnl * contracts); peak = max(peak, bal)
             if bal >= target and best <= consistency * bal:
                 out = "pass"; days_to.append(k + 1); break
@@ -218,8 +221,10 @@ if __name__ == "__main__":
     print("\nEvaluation simulation, 50K-style rules ($3,000 target, $2,000 trailing max loss,")
     print("best day <= 50% of profit), started on every day of the full period:")
     print(f"{'strategy':<26}{'MES':>4}{'pass':>7}{'fail':>7}{'open':>7}{'median days':>13}")
-    for name, (fn, best) in chosen.items():
-        rows = daily(days, fn, **best)
-        for c in (2, 5, 10):
-            r = prop_eval(rows, c)
-            print(f"{name if c == 2 else '':<26}{c:>4}{r['p']*100:>6.0f}%{r['f']*100:>6.0f}%{r['o']*100:>6.0f}%{r['days']:>13.0f}")
+    for mode in ("intraday", "eod", "static"):
+        print(f"-- drawdown mode: {mode}")
+        for name, (fn, best) in chosen.items():
+            rows = daily(days, fn, **best)
+            for c in (2, 5, 10):
+                r = prop_eval(rows, c, mode=mode)
+                print(f"{name if c == 2 else '':<26}{c:>4}{r['p']*100:>6.0f}%{r['f']*100:>6.0f}%{r['o']*100:>6.0f}%{r['days']:>13.0f}")
