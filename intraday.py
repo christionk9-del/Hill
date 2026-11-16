@@ -12,6 +12,7 @@ import pandas as pd
 USD_PER_PT = 50.0            # $ per 1.00 SPY move per MES contract
 COST_PTS = 3.74 / USD_PER_PT  # round trip: 2 x ($0.62 fees + 1 tick slippage)
 IS_DAYS = 110                # in-sample length (trading days)
+DON = (6, 12, 24, 48, 78)    # Donchian channel lengths in 5-minute bars
 
 # ---------------------------------------------------------------- data
 def load(path="data/spy_5min.csv"):
@@ -23,6 +24,9 @@ def load(path="data/spy_5min.csv"):
     d["atr"] = tr.ewm(alpha=1 / 14, adjust=False).mean().shift()   # known at bar open
     for n in (9, 20, 50):
         d[f"ema{n}"] = d.close.ewm(span=n, adjust=False).mean()
+    for n in DON:
+        d[f"dh{n}"] = d.high.rolling(n).max().shift()   # channel of the prior n bars
+        d[f"dl{n}"] = d.low.rolling(n).min().shift()
     days, prev_close = [], None
     for date, g in d.groupby(d.index.date):
         if len(g) != 78:
@@ -33,12 +37,13 @@ def load(path="data/spy_5min.csv"):
         sd = np.sqrt(((tp - vwap) ** 2 * g.volume).cumsum() / cv)
         days.append(dict(date=date, o=g.open.values, h=g.high.values, l=g.low.values, c=g.close.values,
                          atr=g.atr.values, vwap=vwap.ffill().values, sd=sd.ffill().values,
-                         ema={n: g[f"ema{n}"].values for n in (9, 20, 50)}, prev_close=prev_close))
+                         ema={n: g[f"ema{n}"].values for n in (9, 20, 50)}, prev_close=prev_close,
+                         dh={n: g[f"dh{n}"].values for n in DON}, dl={n: g[f"dl{n}"].values for n in DON}))
         prev_close = g.close.iloc[-1]
     return days
 
 # ---------------------------------------------------------------- trade walker
-def walk(day, i, entry, side, stop, target=None, trail=None, exit_fn=None, check_entry_bar=True):
+def walk(day, i, entry, side, stop, target=None, trail=None, exit_fn=None, check_entry_bar=True, chan=None):
     """Follow one trade from bar i. Returns (pnl_pts after costs, worst open pnl pts, exit bar)."""
     h, l, c, o = day["h"], day["l"], day["c"], day["o"]
     mae = 0.0
@@ -53,6 +58,8 @@ def walk(day, i, entry, side, stop, target=None, trail=None, exit_fn=None, check
                 pnl = (px - entry) * side
                 return pnl - COST_PTS, min(mae, pnl) - COST_PTS, j
             mae = min(mae, adverse)
+        elif (c[j] - stop) * side <= 0:   # entry bar: only its close can stop a breakout entry
+            return (stop - entry) * side - COST_PTS, (stop - entry) * side - COST_PTS, j
         if target is not None and j > i:
             if (side > 0 and h[j] >= target) or (side < 0 and l[j] <= target):
                 return (target - entry) * side - COST_PTS, mae - COST_PTS, j
@@ -61,6 +68,8 @@ def walk(day, i, entry, side, stop, target=None, trail=None, exit_fn=None, check
         if trail is not None and j + 1 < 78:
             a = day["atr"][j + 1]
             stop = max(stop, c[j] - trail * a) if side > 0 else min(stop, c[j] + trail * a)
+        if chan is not None and j + 1 < 78:   # turtle exit: opposite side of a shorter channel
+            stop = max(stop, day["dl"][chan][j + 1]) if side > 0 else min(stop, day["dh"][chan][j + 1])
     return (c[77] - entry) * side - COST_PTS, mae - COST_PTS, 77
 
 # ---------------------------------------------------------------- strategies (return trades for one day)
@@ -137,7 +146,25 @@ def gap_fade(day, min_gap=0.002, max_gap=0.01, stop_mult=1.0):
     stop = entry - side * abs(entry - pc) * stop_mult
     return [walk(day, 0, entry, side, stop, target=pc, check_entry_bar=True)[:2]]
 
+def donchian(day, n=24, exit_n=12, stop_atr=1.5, max_trades=2):
+    """Intraday turtle: break of the n-bar channel, tight ATR stop, exit on the opposite
+    exit_n-bar channel (winners run), flat at the close."""
+    out, i = [], 1
+    while i < 66 and len(out) < max_trades:
+        hi, lo = day["dh"][n][i], day["dl"][n][i]
+        up, dn = day["h"][i] > hi, day["l"][i] < lo
+        if up != dn:
+            side = 1 if up else -1
+            entry = max(hi, day["o"][i]) if up else min(lo, day["o"][i])
+            stop = entry - side * stop_atr * day["atr"][i]
+            pnl, mae, j = walk(day, i, entry, side, stop, chan=exit_n, check_entry_bar=False)
+            out.append((pnl, mae)); i = j + 1
+        else:
+            i += 1
+    return out
+
 GRIDS = {
+    "Donchian breakout": (donchian, dict(n=[24, 48, 78], exit_n=[6, 12, 24], stop_atr=[1.0, 2.0, 3.0], max_trades=[1, 3])),
     "Opening range breakout": (orb, dict(n=[3, 6, 12], rr=[None, 1.0, 2.0], stop_frac=[0.5, 1.0])),
     "VWAP fade": (vwap_fade, dict(k=[1.5, 2.0, 2.5], stop_k=[1.0, 2.0])),
     "Open-drive momentum": (momentum, dict(t=[6, 12], thr=[0.001, 0.002, 0.004], trail=[3.0, 5.0])),
