@@ -15,10 +15,18 @@ IS_DAYS = 110                # in-sample length (trading days)
 DON = (6, 12, 24, 48, 78)    # Donchian channel lengths in 5-minute bars
 
 # ---------------------------------------------------------------- data
-def load(path="data/spy_5min.csv"):
+def load(path="data/spy_5min.csv", cost_bps=None, risk_usd=None):
+    """Load 5-minute bars into per-day arrays. With cost_bps / risk_usd set, costs are a
+    fraction of price and each day is sized so the market's typical daily range (median of
+    the prior 20 days) is worth risk_usd, which makes different markets comparable."""
     d = pd.read_csv(path)
     d["ts"] = pd.to_datetime(d.ts, utc=True).dt.tz_convert("America/New_York")
     d = d.set_index("ts")
+    if "volume" not in d:
+        d["volume"] = 0.0
+    day_key = d.index.normalize()
+    rng = (d.high.groupby(day_key).max() - d.low.groupby(day_key).min()) / d.open.groupby(day_key).first()
+    typical = rng.rolling(20).median().shift()
     pc = d.close.shift()
     tr = pd.concat([d.high - d.low, (d.high - pc).abs(), (d.low - pc).abs()], axis=1).max(axis=1)
     d["atr"] = tr.ewm(alpha=1 / 14, adjust=False).mean().shift()   # known at bar open
@@ -39,6 +47,13 @@ def load(path="data/spy_5min.csv"):
                          atr=g.atr.values, vwap=vwap.ffill().values, sd=sd.ffill().values,
                          ema={n: g[f"ema{n}"].values for n in (9, 20, 50)}, prev_close=prev_close,
                          dh={n: g[f"dh{n}"].values for n in DON}, dl={n: g[f"dl{n}"].values for n in DON}))
+        if cost_bps is not None:
+            t = typical.get(pd.Timestamp(date, tz="America/New_York"), np.nan)
+            if not t > 0 or np.isnan(days[-1]["dh"][max(DON)][1]):
+                days.pop()
+            else:
+                o = g.open.iloc[0]
+                days[-1].update(cost=cost_bps / 1e4 * o, usd=risk_usd / (t * o))
         prev_close = g.close.iloc[-1]
     return days
 
@@ -46,6 +61,7 @@ def load(path="data/spy_5min.csv"):
 def walk(day, i, entry, side, stop, target=None, trail=None, exit_fn=None, check_entry_bar=True, chan=None):
     """Follow one trade from bar i. Returns (pnl_pts after costs, worst open pnl pts, exit bar)."""
     h, l, c, o = day["h"], day["l"], day["c"], day["o"]
+    COST_PTS = day.get("cost", globals()["COST_PTS"])
     mae = 0.0
     for j in range(i, 78):
         if j > i or check_entry_bar:
@@ -181,7 +197,8 @@ def daily(days, fn, **p):
         run, worst = 0.0, 0.0
         for pnl, mae in tr:
             worst = min(worst, run + mae); run += pnl
-        rows.append((run * USD_PER_PT, worst * USD_PER_PT, [t[0] * USD_PER_PT for t in tr]))
+        usd = d.get("usd", USD_PER_PT)
+        rows.append((run * usd, worst * usd, [t[0] * usd for t in tr]))
     return rows
 
 def summary(rows):
