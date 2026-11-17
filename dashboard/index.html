@@ -224,6 +224,7 @@
       <li>Payouts count as $1,000 to you. Profit splits, activation fees and monthly fees count only if you log them above.</li>
       <li>The strategy rests on two years of Nasdaq-100 data, one of them unseen. It has not been tested in a bear market like 2022.</li>
       <li>Every account takes the same trades, so good and bad months hit the whole fleet together.</li>
+      <li>The expectations use the backtest’s fill prices. In a test of the live bot against a simulated broker that could only fill on one-minute bars, slippage cut profit by about 40%. Real fills checked every few seconds should land between the two, so treat these figures as the upper end.</li>
       <li>The drawdown floor here is a simple model of an end-of-day trailing drawdown. Your firm’s dashboard is the authority.</li>
       <li>Anyone who can open this dashboard can read the accounts and the log. Only its editors can save changes.</li>
     </ul>
