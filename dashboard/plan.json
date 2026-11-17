@@ -1,0 +1,132 @@
+{
+ "rows": [
+  {
+   "metric": "Payouts per month",
+   "key": "payouts_per_month",
+   "unit": "count",
+   "unseen_year": 11.4665,
+   "full_two_years": 10.5873
+  },
+  {
+   "metric": "Months with no payout",
+   "key": "months_no_payout",
+   "unit": "share",
+   "unseen_year": 0.5181,
+   "full_two_years": 0.5347
+  },
+  {
+   "metric": "Months with 8+ payouts",
+   "key": "months_8_plus",
+   "unit": "share",
+   "unseen_year": 0.4462,
+   "full_two_years": 0.4183
+  },
+  {
+   "metric": "Funded accounts held",
+   "key": "funded_held",
+   "unit": "count",
+   "unseen_year": 13.7219,
+   "full_two_years": 15.3266
+  },
+  {
+   "metric": "Evaluations bought per month",
+   "key": "evals_per_month",
+   "unit": "count",
+   "unseen_year": 2.2307,
+   "full_two_years": 1.0722
+  },
+  {
+   "metric": "Funded accounts lost per month",
+   "key": "funded_churn",
+   "unit": "share",
+   "unseen_year": 0.1259,
+   "full_two_years": 0.0581
+  },
+  {
+   "metric": "Average net per month",
+   "key": "net_per_month",
+   "unit": "usd",
+   "unseen_year": 11176.5375,
+   "full_two_years": 10447.9408
+  },
+  {
+   "metric": "Typical year (median)",
+   "key": "typical_year",
+   "unit": "usd",
+   "unseen_year": 132400.0,
+   "full_two_years": 122810.0
+  },
+  {
+   "metric": "Bad year (1 in 10)",
+   "key": "bad_year",
+   "unit": "usd",
+   "unseen_year": 51750.0,
+   "full_two_years": 39350.0
+  },
+  {
+   "metric": "Good year (1 in 10)",
+   "key": "good_year",
+   "unit": "usd",
+   "unseen_year": 220000.0,
+   "full_two_years": 215035.0
+  },
+  {
+   "metric": "Losing years",
+   "key": "losing_years",
+   "unit": "share",
+   "unseen_year": 0.0085,
+   "full_two_years": 0.012
+  },
+  {
+   "metric": "Return on fees, year 2",
+   "key": "roi_year2",
+   "unit": "share",
+   "unseen_year": 28.8077,
+   "full_two_years": 35.5385
+  },
+  {
+   "metric": "Cash-on-cash, year 2",
+   "key": "cocr_year2",
+   "unit": "share",
+   "unseen_year": 41.2692,
+   "full_two_years": 42.3077
+  },
+  {
+   "metric": "Most cash out of pocket",
+   "key": "cash_needed",
+   "unit": "usd",
+   "unseen_year": 2600.0,
+   "full_two_years": 2600.0
+  },
+  {
+   "metric": "Longest run of months with no payout (typical)",
+   "key": "dry_spell",
+   "unit": "months",
+   "unseen_year": 4.5,
+   "full_two_years": 4.0
+  },
+  {
+   "metric": "Longest run of months with no payout (1 in 10)",
+   "key": "dry_spell_bad",
+   "unit": "months",
+   "unseen_year": 8.0,
+   "full_two_years": 9.0
+  }
+ ],
+ "meta": [
+  {
+   "label": "make_plan_data.py",
+   "value": "\"\"\"Write the dashboard's plan files from the backtest and the fleet simulation.\n\nFleet: 15 accounts with a $3,000 end-of-day drawdown plus 5 with $2,500, all on the Donchian\nvariant at 1 MNQ, $3,000 evaluation target, $1,000 payouts with no consistency or minimum-day\nrule, $130 per evaluation. 2,000 simulated two-year paths built from 20-day blocks of history.\n\"Unseen year\" resamples only Dec 2025 - Nov 2026 (data the variant was not chosen on);\n\"Full two years\" resamples Dec 2024 - Nov 2026.\nOutputs dashboard/plan.json, dashboard/months.json and dashboard/backtest.json.\n\"\"\"\nimport json\nimport os\nimport sys\nimport numpy as np\n\nsys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), \"..\"))\nimport intraday as it          # noqa: E402\nimport fleet as f              # noqa: E402\nimport donchian_lab as L       # noqa: E402\n\nBEST = dict(n=24, exit_n=24, stop_atr=1.0, max_trades=3, last_bar=48, trail_atr=2.0)\nFEE = 130\nHERE = os.path.dirname(os.path.abspath(__file__))\nCODE = open(os.path.abspath(__file__)).read()\n\n\ndef mixed(P):\n    a = f.simulate(P, 15, 1, dict(f.FREE, dd=3000))\n    b = f.simulate(P, 5, 1, dict(f.FREE, dd=2500), offset=15)\n    return {k: a[k] + b[k] for k in a}\n\n\ndef metrics(o):\n    s = {k: v[:, 6:] for k, v in o.items()}\n    net = o[\"payouts\"] * 1000 - o[\"evals\"] * FEE\n    sn = net[:, 6:]\n    y2 = net[:, 12:24].sum(1)\n    fees2 = (o[\"evals\"][:, 12:24] * FEE).sum(1)\n    cum = np.cumsum(net, 1)\n    cash = np.maximum(-np.minimum.accumulate(cum, 1)[:, -1], FEE)\n    runs = []\n    for row in (s[\"payouts\"] == 0):\n        b = c = 0\n        for z in row:\n            c = c + 1 if z else 0\n            b = max(b, c)\n        runs.append(b)\n    roi = np.where(fees2 > 0, y2 / np.maximum(fees2, 1), np.nan)\n    return {\n        \"payouts_per_month\": float(s[\"payouts\"].mean()),\n        \"months_no_payout\": float((s[\"payouts\"] == 0).mean()),\n        \"months_8_plus\": float((s[\"payouts\"] >= 8).mean()),\n        \"evals_per_month\": float(s[\"evals\"].mean()),\n        \"funded_churn\": float(s[\"funded_blown\"].sum() / s[\"funded\"].sum()),\n        \"funded_held\": float(s[\"funded\"].mean()),\n        \"net_per_month\": float(sn.mean()),\n        \"typical_year\": float(np.median(y2)),\n        \"bad_year\": float(np.percentile(y2, 10)),\n        \"good_year\": float(np.percentile(y2, 90)),\n        \"losing_years\": float((y2 < 0).mean()),\n        \"roi_year2\": float(np.nanmedian(roi)),\n        \"cocr_year2\": float(np.median(y2 / cash)),\n        \"cash_needed\": float(np.median(cash)),\n        \"dry_spell\": float(np.median(runs)),\n        \"dry_spell_bad\": float(np.percentile(runs, 90)),\n    }, s[\"payouts\"].ravel()\n\n\nLABELS = [\n    (\"payouts_per_month\", \"Payouts per month\", \"count\"),\n    (\"months_no_payout\", \"Months with no payout\", \"share\"),\n    (\"months_8_plus\", \"Months with 8+ payouts\", \"share\"),\n    (\"funded_held\", \"Funded accounts held\", \"count\"),\n    (\"evals_per_month\", \"Evaluations bought per month\", \"count\"),\n    (\"funded_churn\", \"Funded accounts lost per month\", \"share\"),\n    (\"net_per_month\", \"Average net per month\", \"usd\"),\n    (\"typical_year\", \"Typical year (median)\", \"usd\"),\n    (\"bad_year\", \"Bad year (1 in 10)\", \"usd\"),\n    (\"good_year\", \"Good year (1 in 10)\", \"usd\"),\n    (\"losing_years\", \"Losing years\", \"share\"),\n    (\"roi_year2\", \"Return on fees, year 2\", \"share\"),\n    (\"cocr_year2\", \"Cash-on-cash, year 2\", \"share\"),\n    (\"cash_needed\", \"Most cash out of pocket\", \"usd\"),\n    (\"dry_spell\", \"Longest run of months with no payout (typical)\", \"months\"),\n    (\"dry_spell_bad\", \"Longest run of months with no payout (1 in 10)\", \"months\"),\n]\n\nif __name__ == \"__main__\":\n    nq = L.prepare(os.path.join(HERE, \"..\", \"data/5min/NDX.csv.gz\"), usd=2.0, cost_pts=1.12)\n    half = len(nq) // 2\n    x_all = np.array([r[0] for r in it.daily(nq, L.dx, **BEST)])\n    x_oos = x_all[half:]\n    res, dist = {}, {}\n    for key, x in ((\"unseen_year\", x_oos), (\"full_two_years\", x_all)):\n        P = x[f.bootstrap(len(x), 2000, 24 * f.MONTH)]\n        res[key], dist[key] = metrics(mixed(P))\n    rows = [dict(metric=lab, key=k, unit=u, unseen_year=round(res[\"unseen_year\"][k], 4),\n                 full_two_years=round(res[\"full_two_years\"][k], 4)) for k, lab, u in LABELS]\n    meta = [dict(label=\"make_plan_data.py\", value=CODE, type=\"code\", lang=\"python\"),\n            dict(label=\"Inputs\", value=\"data/5min/NDX.csv.gz (Nasdaq-100 5-minute bars, Dec 2024 - Nov 2026); fleet.py; donchian_lab.py\"),\n            dict(label=\"Fleet\", value=\"15 x $3,000 + 5 x $2,500 end-of-day drawdown, 1 MNQ each, $3,000 target, $1,000 payouts, $130 per evaluation\")]\n    json.dump({\"rows\": rows, \"meta\": meta}, open(os.path.join(HERE, \"plan.json\"), \"w\"), indent=1)\n    buckets = [(0, 0, \"0\"), (1, 4, \"1-4\"), (5, 9, \"5-9\"), (10, 14, \"10-14\"), (15, 19, \"15-19\"), (20, 29, \"20-29\"), (30, 10**6, \"30+\")]\n    mrows = [dict(payouts=lab, order=i, unseen_year=round(float(((dist[\"unseen_year\"] >= lo) & (dist[\"unseen_year\"] <= hi)).mean()), 4),\n                  full_two_years=round(float(((dist[\"full_two_years\"] >= lo) & (dist[\"full_two_years\"] <= hi)).mean()), 4))\n             for i, (lo, hi, lab) in enumerate(buckets)]\n    json.dump({\"rows\": mrows, \"meta\": meta[:2]}, open(os.path.join(HERE, \"months.json\"), \"w\"), indent=1)\n    cum = np.cumsum(x_all)\n    brows = [dict(date=d[\"date\"].isoformat(), pnl=round(float(p), 2), cumulative=round(float(c), 2),\n                  period=\"chosen on\" if i < half else \"unseen\")\n             for i, (d, p, c) in enumerate(zip(nq, x_all, cum))]\n    json.dump({\"rows\": brows, \"meta\": [meta[0], dict(label=\"Inputs\", value=\"data/5min/NDX.csv.gz; strategy: 24-bar channel, 1 ATR stop, 2 ATR trail, entries before 13:30, max 3 trades, 1 MNQ, $2.24 round-trip costs\")]},\n              open(os.path.join(HERE, \"backtest.json\"), \"w\"))\n    for r in rows:\n        print(f\"{r['metric']:<52}{r['unseen_year']:>12,.3f}{r['full_two_years']:>12,.3f}\")\n    print(mrows)\n",
+   "type": "code",
+   "lang": "python"
+  },
+  {
+   "label": "Inputs",
+   "value": "data/5min/NDX.csv.gz (Nasdaq-100 5-minute bars, Dec 2024 - Nov 2026); fleet.py; donchian_lab.py"
+  },
+  {
+   "label": "Fleet",
+   "value": "15 x $3,000 + 5 x $2,500 end-of-day drawdown, 1 MNQ each, $3,000 target, $1,000 payouts, $130 per evaluation"
+  }
+ ]
+}

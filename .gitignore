@@ -1,1 +1,5 @@
 __pycache__/
+live/config.json
+live/logs/
+logs/
+STOP

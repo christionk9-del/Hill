@@ -1,0 +1,15 @@
+{
+  "base_url": "https://api.topstepx.com",
+  "username_env": "TOPSTEPX_USERNAME",
+  "api_key_env": "TOPSTEPX_API_KEY",
+  "symbol": "MNQ",
+  "accounts": ["REPLACE-WITH-TOPSTEP-ACCOUNT-NAME-1", "REPLACE-WITH-TOPSTEP-ACCOUNT-NAME-2"],
+  "contracts_per_account": 1,
+  "dry_run": true,
+  "poll_seconds": 3,
+  "daily_loss_limit": 600,
+  "skip_dates": ["2026-11-27", "2026-12-24"],
+  "log_dir": "logs",
+  "stop_file": "STOP",
+  "strategy": {"n": 24, "exit_n": 24, "stop_atr": 1.0, "trail_atr": 2.0, "max_trades": 3, "first_bar": 1, "last_bar": 48, "atr_len": 14, "tick": 0.25}
+}

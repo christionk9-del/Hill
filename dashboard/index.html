@@ -1,0 +1,614 @@
+<meta name="dash-one-writer">
+<style>
+  .pf { display: grid; gap: var(--cds-gap-xl); font-family: var(--font-anthropic-sans); color: var(--color-fg); }
+  .pf h1 { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; }
+  .pf h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; text-wrap: balance; }
+  .pf p { margin: 0; max-width: 72ch; }
+  .pf-lede { margin-top: var(--cds-gap-xs); color: var(--color-fg-muted); }
+  .pf-note { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+  .pf-sec { display: grid; gap: var(--cds-gap-md); }
+  .pf-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--cds-gap-md); }
+  .pf-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: grid; gap: var(--cds-gap-xs); align-content: start; min-width: 0; }
+  .pf-label { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); letter-spacing: 0.02em; }
+  .pf-big { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .pf-sub { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .pf-scroll { overflow-x: auto; }
+  .pf table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  .pf th { text-align: left; font-weight: var(--cds-font-weight-medium); color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); padding: var(--cds-pad-xs) var(--cds-pad-sm); border-bottom: 1px solid var(--color-border-line); white-space: nowrap; }
+  .pf td { padding: var(--cds-pad-xs) var(--cds-pad-sm); border-bottom: 1px solid var(--color-border-line); white-space: nowrap; }
+  .pf .num { text-align: right; }
+  .pf-chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: var(--cds-font-size-caption); border: 1px solid var(--color-border-line); color: var(--color-fg-muted); }
+  .pf-chip.funded { color: var(--color-ok); border-color: currentColor; }
+  .pf-chip.eval { color: var(--color-fg); }
+  .pf-chip.failed { color: var(--color-bad); border-color: currentColor; }
+  .pf-room { display: flex; align-items: center; gap: var(--cds-gap-sm); min-width: 170px; }
+  .pf-bar { flex: 1; height: 8px; background: var(--cds-chart-grid); border-radius: 4px; overflow: hidden; min-width: 70px; }
+  .pf-bar > span { display: block; height: 100%; background: var(--color-ok); }
+  .pf-bar.warn > span { background: var(--color-warn); }
+  .pf-bar.bad > span { background: var(--color-bad); }
+  .pf-form { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm); align-items: end; background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md); }
+  .pf-form label { display: grid; gap: 2px; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .pf-form input { font: inherit; font-size: var(--cds-font-size-body); color: var(--color-fg); background: var(--color-bg); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: 5px 8px; width: 8.5em; }
+  .pf-form .dash-select { min-width: 11em; }
+  .pf-btn { font: inherit; font-size: var(--cds-font-size-body); padding: 6px 14px; border-radius: var(--cds-radius); border: 1px solid var(--color-fg); background: var(--color-fg); color: var(--color-bg); cursor: pointer; }
+  .pf-btn:focus-visible, .pf-form input:focus-visible, .pf-form select:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+  .pf-btn.ghost { background: transparent; color: var(--color-fg-muted); border-color: var(--color-border-line); padding: 2px 8px; font-size: var(--cds-font-size-caption); }
+  .pf-btn.ghost.armed { color: var(--color-bad); border-color: currentColor; }
+  .pf-msg { font-size: var(--cds-font-size-caption); align-self: center; }
+  .pf-msg.ok { color: var(--color-ok); }
+  .pf-msg.bad { color: var(--color-bad); }
+  .pf-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--cds-gap-lg); }
+  .pf-two > * { min-width: 0; }
+  .pf-chart { position: relative; min-height: 240px; }
+  .pf-chart svg { display: block; overflow: visible; }
+  .pf-chart text { fill: var(--cds-text-secondary); font-size: var(--cds-font-size-caption); }
+  .pf-chart .end { fill: var(--color-fg); }
+  .pf-tip[hidden] { display: none; }
+  .pf-tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); box-shadow: var(--cds-shadow-popover); border-radius: var(--cds-radius); padding: 6px 8px; font-size: var(--cds-font-size-caption); color: var(--color-fg); white-space: nowrap; z-index: 2; }
+  .pf-legend { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .pf-sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; background: var(--cds-chart-muted); }
+  .pf .good { color: var(--color-ok); }
+  .pf .bad { color: var(--color-bad); }
+  .pf details { color: var(--color-fg-muted); max-width: 75ch; }
+  .pf details summary { cursor: pointer; color: var(--color-fg); }
+  .pf details ul { padding-left: 1.2em; display: grid; gap: var(--cds-gap-xs); }
+</style>
+
+<div class="pf">
+  <header id="top">
+    <h1>Prop Fleet Tracker</h1>
+    <p class="pf-lede" id="status-line">
+      <span data-draw="n-funded" data-source="fleet" data-field="funded" data-row="0">—</span> funded,
+      <span data-draw="n-eval" data-source="fleet" data-field="evaluating" data-row="0">—</span> in evaluation,
+      <span data-draw="n-failed" data-source="fleet" data-field="failed" data-row="0">—</span> failed and
+      <span data-draw="n-idle" data-source="fleet" data-field="not_started" data-row="0">—</span> not started.
+      <span id="money-line">So far <span data-draw="lede-pay" data-source="fleet" data-field="payouts_usd" data-row="0">—</span> paid out against <span data-draw="lede-fees" data-source="fleet" data-field="fees_usd" data-row="0">—</span> in fees.</span>
+      <span id="money-empty">No fees or payouts logged yet.</span>
+    </p>
+  </header>
+
+  <section class="pf-kpis" id="totals" aria-label="Fleet totals">
+    <div class="pf-card" id="card-payouts">
+      <span class="pf-label">Payouts received</span>
+      <span class="pf-big" data-draw="k-pay" data-source="fleet" data-field="payouts_usd" data-row="0">—</span>
+      <span class="pf-sub"><span data-draw="k-npay" data-source="fleet" data-field="payouts_n" data-row="0">—</span> payouts</span>
+    </div>
+    <div class="pf-card" id="card-fees">
+      <span class="pf-label">Fees paid</span>
+      <span class="pf-big" data-draw="k-fees" data-source="fleet" data-field="fees_usd" data-row="0">—</span>
+      <span class="pf-sub"><span data-draw="k-nevals" data-source="fleet" data-field="evals_n" data-row="0">—</span> evaluations bought</span>
+    </div>
+    <div class="pf-card" id="card-net">
+      <span class="pf-label">Net</span>
+      <span class="pf-big" data-draw="k-net" data-source="fleet" data-field="net" data-row="0">—</span>
+      <span class="pf-sub">Payouts minus every fee</span>
+    </div>
+    <div class="pf-card" id="card-roi">
+      <span class="pf-label">Return on fees</span>
+      <span class="pf-big" data-draw="k-roi" data-source="fleet" data-field="roi" data-row="0">—</span>
+      <span class="pf-sub">Net divided by fees paid</span>
+    </div>
+    <div class="pf-card" id="card-cocr">
+      <span class="pf-label">Cash-on-cash</span>
+      <span class="pf-big" data-draw="k-cocr" data-source="fleet" data-field="cocr" data-row="0">—</span>
+      <span class="pf-sub">Net divided by the most cash ever out of pocket (<span data-draw="k-cash" data-source="fleet" data-field="cash_needed" data-row="0">—</span>)</span>
+    </div>
+    <div class="pf-card" id="card-ppm">
+      <span class="pf-label">Payouts per month</span>
+      <span class="pf-big" data-draw="k-ppm" data-source="fleet" data-field="payouts_per_month" data-row="0">—</span>
+      <span class="pf-sub">Simulation expects <span data-draw="k-plan-lo" data-source="plan" data-field="full_two_years" data-where="key=payouts_per_month">—</span> to <span data-draw="k-plan-hi" data-source="plan" data-field="unseen_year" data-where="key=payouts_per_month">—</span></span>
+    </div>
+  </section>
+
+  <section class="pf-sec" id="accounts">
+    <h2>Accounts</h2>
+    <p class="pf-note">Room is the balance minus the end-of-day trailing floor. The floor follows the highest end-of-day balance and stops trailing at the starting balance in an evaluation, or start + $100 once funded. Update each account's balance after the close.</p>
+    <div class="pf-scroll">
+      <table data-source="acct_view" data-row-key="id" aria-label="Accounts">
+        <thead><tr>
+          <th data-field="name">Account</th>
+          <th data-field="platform">Platform</th>
+          <th data-field="phase">Phase</th>
+          <th data-field="balance" class="num">Balance</th>
+          <th data-field="peak" class="num">Peak end-of-day</th>
+          <th data-field="drawdown" class="num">Drawdown</th>
+          <th data-field="room">Room to the floor</th>
+        </tr></thead>
+        <tbody data-draw="acct-rows"></tbody>
+      </table>
+    </div>
+    <form class="pf-form" id="acct-form" aria-label="Update an account">
+      <label for="acct-pick">Account
+        <select class="dash-select" id="acct-pick" data-draw="acct-pick" data-source="accounts"></select>
+      </label>
+      <label for="acct-phase">Phase
+        <select class="dash-select" id="acct-phase">
+          <option>Not started</option>
+          <option>Evaluation</option>
+          <option>Funded</option>
+          <option>Failed</option>
+        </select>
+      </label>
+      <label for="acct-balance">Balance
+        <input id="acct-balance" type="number" step="0.01" inputmode="decimal" placeholder="50000">
+      </label>
+      <label for="acct-peak">Peak end-of-day
+        <input id="acct-peak" type="number" step="0.01" inputmode="decimal" placeholder="optional">
+      </label>
+      <button class="pf-btn" type="submit" id="acct-save">Save account</button>
+      <span class="pf-msg ok" id="acct-saved" hidden>Saved.</span>
+      <span class="pf-msg bad" id="acct-unsaved" hidden>That wasn’t saved. Only editors of this dashboard can save.</span>
+      <span class="pf-msg bad" id="acct-need" hidden>Choose an account and enter its balance.</span>
+    </form>
+    <p class="pf-note">Changing the phase starts the trailing floor again from the new balance, as when a new evaluation or funded account begins. Leave Peak empty to keep the highest balance on record.</p>
+  </section>
+
+  <section class="pf-sec" id="ledger">
+    <h2>Fees and payouts</h2>
+    <form class="pf-form" id="led-form" aria-label="Log a fee or payout">
+      <label for="led-date">Date
+        <input id="led-date" type="date" min="2026-01-01" max="2035-12-31">
+      </label>
+      <label for="led-account">Account
+        <select class="dash-select" id="led-account" data-draw="led-account" data-source="accounts"></select>
+      </label>
+      <label for="led-kind">Type
+        <select class="dash-select" id="led-kind">
+          <option>Evaluation fee</option>
+          <option>Activation fee</option>
+          <option>Payout</option>
+          <option>Other cost</option>
+        </select>
+      </label>
+      <label for="led-amount">Amount ($)
+        <input id="led-amount" type="number" step="0.01" min="0" inputmode="decimal" placeholder="130">
+      </label>
+      <button class="pf-btn" type="submit" id="led-add">Add to log</button>
+      <span class="pf-msg ok" id="led-saved" hidden>Added.</span>
+      <span class="pf-msg bad" id="led-unsaved" hidden>That wasn’t saved. Only editors of this dashboard can save.</span>
+      <span class="pf-msg bad" id="led-need" hidden>Enter a date and an amount above zero.</span>
+    </form>
+    <p class="pf-note" id="led-empty">Nothing logged yet. Add every evaluation fee, activation fee and payout here; the totals at the top come from these rows.</p>
+    <div class="pf-scroll" id="led-table">
+      <table data-source="ledger" data-row-key="id" aria-label="Fees and payouts">
+        <thead><tr>
+          <th data-field="date">Date</th>
+          <th data-field="account">Account</th>
+          <th data-field="kind">Type</th>
+          <th data-field="amount" class="num">Amount</th>
+          <th><span class="pf-note">Remove</span></th>
+        </tr></thead>
+        <tbody data-draw="led-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="pf-sec" id="plan">
+    <h2>What the simulation expects</h2>
+    <p class="pf-note">From 2,000 simulated two-year paths of this fleet: 15 accounts with a $3,000 drawdown and 5 with $2,500, 1 MNQ each, all copying the same trades, $3,000 target, $1,000 payouts with no consistency rule, $130 per evaluation. “Unseen year” resamples only the year the strategy was not chosen on. “Full two years” also includes the year it was chosen on, so treat it as optimistic.</p>
+    <div class="pf-scroll">
+      <table data-source="plan" data-row-key="key" aria-label="Simulation expectations">
+        <thead><tr>
+          <th data-field="metric">Measure</th>
+          <th data-field="unseen_year" class="num">Unseen year</th>
+          <th data-field="full_two_years" class="num">Full two years</th>
+        </tr></thead>
+        <tbody data-draw="plan-rows"></tbody>
+      </table>
+    </div>
+    <div class="pf-two">
+      <div id="months-block" class="pf-sec">
+        <h2>Most months pay nothing, then many accounts pay at once</h2>
+        <div class="pf-legend">
+          <span><i class="pf-sw" data-series="0"></i>Unseen year</span>
+          <span><i class="pf-sw" data-series="1"></i>Full two years</span>
+        </div>
+        <div class="pf-chart" id="months-chart" data-draw="months-chart" data-source="months"></div>
+        <p class="pf-note">Share of simulated months by the number of payouts the whole fleet received that month.</p>
+      </div>
+      <div id="bt-block" class="pf-sec">
+        <h2>Strategy backtest, 1 MNQ</h2>
+        <div class="pf-legend">
+          <span><i class="pf-sw" data-series="0"></i>Cumulative net profit</span>
+          <span><i class="pf-sw"></i>Unseen year (after the strategy was chosen)</span>
+        </div>
+        <div class="pf-chart" id="bt-chart" data-draw="bt-chart" data-source="backtest"></div>
+        <p class="pf-note">Nasdaq-100 5-minute bars, after $2.24 round-trip costs per trade. One account’s path; the fleet copies it.</p>
+      </div>
+    </div>
+  </section>
+
+  <details id="notes">
+    <summary>Assumptions and limits</summary>
+    <ul>
+      <li>Payouts count as $1,000 to you. Profit splits, activation fees and monthly fees count only if you log them above.</li>
+      <li>The strategy rests on two years of Nasdaq-100 data, one of them unseen. It has not been tested in a bear market like 2022.</li>
+      <li>Every account takes the same trades, so good and bad months hit the whole fleet together.</li>
+      <li>The drawdown floor here is a simple model of an end-of-day trailing drawdown. Your firm’s dashboard is the authority.</li>
+      <li>Anyone who can open this dashboard can read the accounts and the log. Only its editors can save changes.</li>
+    </ul>
+  </details>
+</div>
+
+<script>
+  // ---------- figures worked out from the saved rows
+  dash.calc('acct_view', {
+    inputs: ['accounts'],
+    title: 'Accounts with room to the floor',
+    description: 'Each account with its end-of-day trailing floor and the room left above it.',
+    fn: (accounts) => accounts.map((a) => {
+      const n = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v))) ? null : Number(v);
+      const start = n(a.start) ?? 50000;
+      const balance = n(a.balance);
+      const peak = Math.max(n(a.peak) ?? start, balance ?? -Infinity);
+      const drawdown = n(a.drawdown);
+      const live = a.phase === 'Evaluation' || a.phase === 'Funded';
+      const lock = a.phase === 'Funded' ? start + 100 : start;
+      const floor = live && drawdown !== null ? Math.min(peak - drawdown, lock) : null;
+      const room = floor !== null && balance !== null ? Math.round((balance - floor) * 100) / 100 : null;
+      return {id: a.id, name: a.name, platform: a.platform, phase: a.phase, balance, peak, drawdown, floor, room, order: n(a.order) ?? 0};
+    }).sort((x, y) => x.order - y.order),
+  });
+
+  dash.calc('fleet', {
+    inputs: ['accounts', 'ledger'],
+    title: 'Fleet totals',
+    description: 'Accounts by phase, and money in and out from the fee and payout log.',
+    fn: (accounts, ledger) => {
+      const count = (p) => accounts.filter((a) => a.phase === p).length;
+      const rows = ledger.map((r) => ({date: String(r.date || ''), kind: r.kind, amount: Number(r.amount) || 0}))
+        .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+      let pay = 0, npay = 0, fees = 0, nevals = 0, cum = 0, low = 0;
+      for (const r of rows) {
+        if (r.kind === 'Payout') { pay += r.amount; npay += 1; cum += r.amount; }
+        else { fees += r.amount; if (r.kind === 'Evaluation fee') nevals += 1; cum -= r.amount; }
+        low = Math.min(low, cum);
+      }
+      const net = pay - fees;
+      const cash = -low;
+      let months = null;
+      if (rows.length && rows[0].date) {
+        const first = Date.parse(rows[0].date + 'T00:00:00Z');
+        months = Math.max(1, (Date.now() - first) / (30.44 * 864e5));
+      }
+      return [{
+        funded: count('Funded'), evaluating: count('Evaluation'), failed: count('Failed'), not_started: count('Not started'),
+        payouts_usd: pay, payouts_n: npay, fees_usd: fees, evals_n: nevals, net,
+        roi: fees > 0 ? net / fees : null, cash_needed: cash, cocr: cash > 0 ? net / cash : null,
+        months, payouts_per_month: months ? npay / months : null, entries: rows.length,
+      }];
+    },
+  });
+
+  window.pf = {
+    usd: (v) => (v === null || v === undefined || !Number.isFinite(v)) ? '—' : (v < 0 ? '−$' : '$') + d3.format(',.0f')(Math.abs(v)),
+    pct: (v) => (v === null || v === undefined || !Number.isFinite(v)) ? '—' : d3.format(',.0%')(v),
+    int: (v) => (v === null || v === undefined || !Number.isFinite(v)) ? '—' : d3.format(',d')(v),
+    one: (v) => (v === null || v === undefined || !Number.isFinite(v)) ? '—' : d3.format(',.1f')(v),
+    first: (id) => {
+      const g = dash.data(id);
+      return g.status === 'ok' && Array.isArray(g.data) && g.data.length ? g.data[0] : null;
+    },
+    loading: (el, ids) => el.classList.toggle('dash-skeleton', ids.some((id) => dash.data(id).status === 'loading')),
+  };
+</script>
+
+<script>
+  // ---------- single figures
+  const figures = [
+    ['n-funded', 'funded', pf.int], ['n-eval', 'evaluating', pf.int], ['n-failed', 'failed', pf.int], ['n-idle', 'not_started', pf.int],
+    ['lede-pay', 'payouts_usd', pf.usd], ['lede-fees', 'fees_usd', pf.usd],
+    ['k-pay', 'payouts_usd', pf.usd], ['k-npay', 'payouts_n', pf.int], ['k-fees', 'fees_usd', pf.usd], ['k-nevals', 'evals_n', pf.int],
+    ['k-net', 'net', pf.usd, true], ['k-roi', 'roi', pf.pct, true], ['k-cocr', 'cocr', pf.pct, true], ['k-cash', 'cash_needed', pf.usd],
+    ['k-ppm', 'payouts_per_month', pf.one],
+  ];
+  for (const [name, key, fmt, tone] of figures) {
+    dash.draw(name, (el) => {
+      pf.loading(el, ['accounts', 'ledger']);
+      const r = pf.first('fleet');
+      const v = r ? r[key] : null;
+      el.textContent = r ? fmt(v) : '—';
+      if (tone) {
+        el.classList.toggle('good', Number.isFinite(v) && v > 0);
+        el.classList.toggle('bad', Number.isFinite(v) && v < 0);
+      }
+    });
+  }
+  for (const [name, col] of [['k-plan-lo', 'full_two_years'], ['k-plan-hi', 'unseen_year']]) {
+    dash.draw(name, (el) => {
+      pf.loading(el, ['plan']);
+      const g = dash.data('plan');
+      const r = g.status === 'ok' ? g.data.find((x) => x.key === 'payouts_per_month') : null;
+      el.textContent = r ? pf.one(Number(r[col])) : '—';
+    });
+  }
+
+  dash.onData(() => {
+    const r = pf.first('fleet');
+    const has = !!(r && r.entries > 0);
+    document.querySelectorAll('#money-line').forEach((e) => { e.hidden = !has; });
+    document.querySelectorAll('#money-empty').forEach((e) => { e.hidden = has || !r; });
+    const g = dash.data('ledger');
+    const empty = g.status === 'ok' && g.data.length === 0;
+    document.querySelectorAll('#led-empty').forEach((e) => { e.hidden = !empty; });
+    document.querySelectorAll('#led-table').forEach((e) => { e.hidden = empty; });
+    document.querySelectorAll('.pf-sw[data-series]').forEach((e) => { e.style.background = dash.colors[Number(e.dataset.series)] || ''; });
+  });
+</script>
+
+<script>
+  // ---------- accounts table and form
+  dash.draw('acct-rows', (tb) => {
+    const g = dash.data('acct_view');
+    tb.replaceChildren();
+    if (g.status !== 'ok' || !Array.isArray(g.data)) return;
+    const chip = {Funded: 'funded', Evaluation: 'eval', Failed: 'failed'};
+    for (const a of g.data) {
+      const tr = document.createElement('tr');
+      tr.dataset.key = encodeURIComponent(a.id);
+      const cell = (text, cls) => { const td = document.createElement('td'); if (cls) td.className = cls; td.textContent = text; tr.append(td); return td; };
+      cell(a.name || a.id);
+      cell(a.platform || '');
+      const ph = cell('');
+      const c = document.createElement('span');
+      c.className = 'pf-chip ' + (chip[a.phase] || '');
+      c.textContent = a.phase || 'Not started';
+      ph.append(c);
+      cell(pf.usd(a.balance), 'num');
+      cell(pf.usd(a.peak), 'num');
+      cell(pf.usd(a.drawdown), 'num');
+      const rc = cell('');
+      if (a.room === null) {
+        rc.textContent = '—';
+      } else {
+        const wrap = document.createElement('div');
+        wrap.className = 'pf-room';
+        const share = a.drawdown ? Math.max(0, Math.min(1, a.room / a.drawdown)) : 0;
+        const bar = document.createElement('div');
+        bar.className = 'pf-bar' + (share < 0.25 ? ' bad' : share < 0.5 ? ' warn' : '');
+        const fill = document.createElement('span');
+        fill.style.width = (share * 100).toFixed(1) + '%';
+        bar.append(fill);
+        const t = document.createElement('span');
+        t.textContent = pf.usd(a.room);
+        wrap.append(bar, t);
+        rc.append(wrap);
+      }
+      tb.append(tr);
+    }
+  });
+
+  for (const name of ['acct-pick', 'led-account']) {
+    dash.draw(name, (sel) => {
+      const g = dash.data('accounts');
+      const cur = sel.value;
+      const rows = g.status === 'ok' ? [...g.data].sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0)) : [];
+      const value = (a) => (name === 'acct-pick' ? a.id : (a.name || a.id));
+      sel.replaceChildren(new Option(name === 'acct-pick' ? 'Choose an account' : 'Whole fleet', ''), ...rows.map((a) => new Option(a.name || a.id, value(a))));
+      sel.value = rows.some((a) => value(a) === cur) ? cur : '';
+    });
+  }
+
+  const pfShow = (sel, on) => document.querySelectorAll(sel).forEach((e) => { e.hidden = !on; });
+  const pfVal = (sel) => { const e = document.querySelector(sel); return e ? e.value : ''; };
+  const pfSet = (sel, v) => document.querySelectorAll(sel).forEach((e) => { e.value = v; });
+
+  document.querySelectorAll('#acct-pick').forEach((sel) => sel.addEventListener('change', () => {
+    const g = dash.data('accounts');
+    const a = g.status === 'ok' ? g.data.find((r) => r.id === sel.value) : null;
+    pfSet('#acct-phase', a ? (a.phase || 'Not started') : 'Not started');
+    pfSet('#acct-balance', a && a.balance !== undefined && a.balance !== null ? a.balance : '');
+    pfSet('#acct-peak', '');
+    pfShow('#acct-saved', false); pfShow('#acct-unsaved', false); pfShow('#acct-need', false);
+  }));
+
+  document.querySelectorAll('#acct-form').forEach((form) => form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    pfShow('#acct-saved', false); pfShow('#acct-unsaved', false);
+    const id = pfVal('#acct-pick');
+    const balance = Number(pfVal('#acct-balance'));
+    const peakIn = pfVal('#acct-peak') === '' ? null : Number(pfVal('#acct-peak'));
+    const phase = pfVal('#acct-phase');
+    if (!id || pfVal('#acct-balance') === '' || !Number.isFinite(balance)) { pfShow('#acct-need', true); return; }
+    pfShow('#acct-need', false);
+    const g = dash.data('accounts');
+    const prev = g.status === 'ok' ? g.data.find((r) => r.id === id) : null;
+    const restarted = !prev || prev.phase !== phase;
+    const prevPeak = prev && Number.isFinite(Number(prev.peak)) ? Number(prev.peak) : balance;
+    const peak = restarted ? Math.max(balance, peakIn ?? balance) : Math.max(prevPeak, balance, peakIn ?? -Infinity);
+    let ok = true;
+    try {
+      const db = await claude.use('db');
+      if (!db) throw new Error('no db');
+      await db.doc('data/fleet/accounts/' + id).update({phase, balance, peak, updated: new Date().toISOString().slice(0, 10)});
+    } catch (err) { ok = false; }
+    pfShow('#acct-saved', ok); pfShow('#acct-unsaved', !ok);
+  }));
+</script>
+
+<script>
+  // ---------- fee and payout log
+  document.querySelectorAll('#led-date').forEach((d) => { if (!d.value) d.value = new Date().toISOString().slice(0, 10); });
+
+  document.querySelectorAll('#led-form').forEach((form) => form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const dateEl = document.querySelector('#led-date');
+    const date = dateEl && dateEl.value && dateEl.validity.valid ? dateEl.value : '';
+    const amount = Number(pfVal('#led-amount'));
+    pfShow('#led-saved', false); pfShow('#led-unsaved', false);
+    if (!date || !(amount > 0)) { pfShow('#led-need', true); return; }
+    pfShow('#led-need', false);
+    let ok = true;
+    try {
+      const db = await claude.use('db');
+      if (!db) throw new Error('no db');
+      await db.collection('data/fleet/ledger').add({date, account: pfVal('#led-account') || 'Whole fleet', kind: pfVal('#led-kind'), amount});
+    } catch (err) { ok = false; }
+    pfShow('#led-saved', ok); pfShow('#led-unsaved', !ok);
+    if (ok) pfSet('#led-amount', '');
+  }));
+
+  dash.draw('led-rows', (tb) => {
+    const g = dash.data('ledger');
+    tb.replaceChildren();
+    if (g.status !== 'ok' || !Array.isArray(g.data)) return;
+    const rows = [...g.data].sort((a, b) => (String(a.date) < String(b.date) ? 1 : String(a.date) > String(b.date) ? -1 : 0));
+    for (const r of rows) {
+      const tr = document.createElement('tr');
+      tr.dataset.key = encodeURIComponent(r.id);
+      const cell = (text, cls) => { const td = document.createElement('td'); if (cls) td.className = cls; td.textContent = text; tr.append(td); return td; };
+      cell(String(r.date || ''));
+      cell(String(r.account || ''));
+      cell(String(r.kind || ''));
+      const amt = Number(r.amount) || 0;
+      const a = cell(pf.usd(amt), 'num');
+      if (r.kind === 'Payout') a.classList.add('good');
+      const td = cell('');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'pf-btn ghost';
+      btn.textContent = 'Remove';
+      btn.setAttribute('aria-label', 'Remove ' + (r.kind || 'entry') + ' of ' + pf.usd(amt) + ' on ' + (r.date || ''));
+      btn.addEventListener('click', async () => {
+        if (!btn.classList.contains('armed')) { btn.classList.add('armed'); btn.textContent = 'Confirm'; return; }
+        btn.disabled = true;
+        try {
+          const db = await claude.use('db');
+          if (!db) throw new Error('no db');
+          await db.doc('data/fleet/ledger/' + r.id).delete();
+        } catch (err) { btn.disabled = false; btn.textContent = 'Not removed'; }
+      });
+      td.append(btn);
+      tb.append(tr);
+    }
+  });
+</script>
+
+<script>
+  // ---------- simulation table
+  dash.draw('plan-rows', (tb) => {
+    const g = dash.data('plan');
+    tb.replaceChildren();
+    if (g.status !== 'ok' || !Array.isArray(g.data)) return;
+    const fmt = {count: pf.one, share: pf.pct, usd: pf.usd, months: (v) => pf.one(v) + ' months'};
+    for (const r of g.data) {
+      const tr = document.createElement('tr');
+      tr.dataset.key = encodeURIComponent(r.key);
+      const f = fmt[r.unit] || pf.one;
+      for (const [text, cls] of [[r.metric, ''], [f(Number(r.unseen_year)), 'num'], [f(Number(r.full_two_years)), 'num']]) {
+        const td = document.createElement('td');
+        if (cls) td.className = cls;
+        td.textContent = text;
+        tr.append(td);
+      }
+      tb.append(tr);
+    }
+  });
+</script>
+
+<script>
+  // ---------- charts
+  window.pfTip = (box) => {
+    let tip = box.querySelector('.pf-tip');
+    if (!tip) { tip = document.createElement('div'); tip.className = 'pf-tip'; tip.hidden = true; box.append(tip); }
+    return {
+      show(lines, x, y) {
+        tip.replaceChildren(...lines.map((l) => { const d = document.createElement('div'); d.textContent = l; return d; }));
+        tip.hidden = false;
+        const w = tip.offsetWidth, bw = box.clientWidth;
+        tip.style.left = Math.max(0, Math.min(bw - w, x - w / 2)) + 'px';
+        tip.style.top = Math.max(0, y - tip.offsetHeight - 10) + 'px';
+      },
+      hide() { tip.hidden = true; },
+    };
+  };
+
+  dash.draw('months-chart', (el) => {
+    const g = dash.data('months');
+    el.replaceChildren();
+    if (g.status !== 'ok') { el.textContent = g.status === 'error' ? 'Failed to load' : '—'; return; }
+    const rows = [...g.data].sort((a, b) => Number(a.order) - Number(b.order));
+    const series = [['unseen_year', 'Unseen year'], ['full_two_years', 'Full two years']];
+    const W = Math.max(280, el.clientWidth), H = 240;
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`)
+      .attr('role', 'img').attr('aria-label', 'Bar chart: share of simulated months by number of fleet payouts that month');
+    const ymax = d3.max(rows, (r) => d3.max(series, ([k]) => Number(r[k]))) || 1;
+    const y = d3.scaleLinear().domain([0, ymax * 1.12]).nice().range([H - 28, 14]);
+    const yAxis = svg.append('g').call(d3.axisLeft(y).ticks(4).tickFormat(d3.format('.0%')).tickSize(0));
+    yAxis.select('.domain').remove();
+    const left = Math.ceil(yAxis.node().getBBox().width) + 8;
+    yAxis.attr('transform', `translate(${left},0)`);
+    const x = d3.scaleBand().domain(rows.map((r) => r.payouts)).range([left + 4, W - 4]).padding(0.22);
+    const xs = d3.scaleBand().domain(series.map((s) => s[0])).range([0, x.bandwidth()]).padding(0.08);
+    svg.append('g').selectAll('line').data(y.ticks(4)).join('line')
+      .attr('x1', left + 4).attr('x2', W - 4).attr('y1', (d) => y(d)).attr('y2', (d) => y(d)).style('stroke', 'var(--cds-chart-grid)');
+    svg.append('g').attr('transform', `translate(0,${H - 28})`).call(d3.axisBottom(x).tickSize(0)).call((a) => a.select('.domain').style('stroke', 'var(--cds-chart-axis)'));
+    svg.append('text').attr('x', W - 4).attr('y', H - 2).attr('text-anchor', 'end').text('payouts in the month');
+    const tip = pfTip(el);
+    const groups = svg.append('g').selectAll('g').data(rows).join('g').attr('transform', (r) => `translate(${x(r.payouts)},0)`);
+    series.forEach(([k, label], i) => {
+      groups.append('rect').attr('x', xs(k)).attr('width', xs.bandwidth())
+        .attr('y', (r) => y(Number(r[k]))).attr('height', (r) => y(0) - y(Number(r[k])))
+        .style('fill', dash.colors[i])
+        .on('pointerenter pointermove', (ev, r) => {
+          const [px, py] = d3.pointer(ev, el);
+          tip.show([`${r.payouts} payouts`, `${label}: ${d3.format('.1%')(Number(r[k]))} of months`], px, py);
+        })
+        .on('pointerleave', () => tip.hide());
+      if (xs.bandwidth() >= 22) {
+        groups.append('text').attr('x', xs(k) + xs.bandwidth() / 2).attr('y', (r) => y(Number(r[k])) - 4)
+          .attr('text-anchor', 'middle').text((r) => d3.format('.0%')(Number(r[k])));
+      }
+    });
+  });
+
+  dash.draw('bt-chart', (el) => {
+    const g = dash.data('backtest');
+    el.replaceChildren();
+    if (g.status !== 'ok') { el.textContent = g.status === 'error' ? 'Failed to load' : '—'; return; }
+    const parse = d3.utcParse('%Y-%m-%d');
+    const rows = g.data.map((r) => ({date: parse(r.date), cum: Number(r.cumulative), period: r.period})).filter((r) => r.date);
+    if (!rows.length) return;
+    const W = Math.max(280, el.clientWidth), H = 240;
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`)
+      .attr('role', 'img').attr('aria-label', 'Line chart: cumulative backtest profit of the strategy on one MNQ contract');
+    const y = d3.scaleLinear().domain(d3.extent([0, ...rows.map((r) => r.cum)])).nice().range([H - 26, 12]);
+    const yAxis = svg.append('g').call(d3.axisLeft(y).ticks(5).tickFormat((v) => pf.usd(v)).tickSize(0));
+    yAxis.select('.domain').remove();
+    const left = Math.ceil(yAxis.node().getBBox().width) + 8;
+    yAxis.attr('transform', `translate(${left},0)`);
+    const endLabel = pf.usd(rows[rows.length - 1].cum);
+    const probe = svg.append('text').attr('class', 'end').text(endLabel);
+    const right = Math.ceil(probe.node().getComputedTextLength()) + 10;
+    probe.remove();
+    const x = d3.scaleUtc().domain(d3.extent(rows, (r) => r.date)).range([left + 4, W - right]);
+    const firstUnseen = rows.find((r) => r.period === 'unseen');
+    if (firstUnseen) {
+      svg.append('rect').attr('x', x(firstUnseen.date)).attr('y', 12).attr('width', W - right - x(firstUnseen.date)).attr('height', H - 38)
+        .style('fill', 'var(--cds-chart-muted)').style('opacity', 0.18);
+    }
+    svg.append('g').selectAll('line').data(y.ticks(5)).join('line')
+      .attr('x1', left + 4).attr('x2', W - right).attr('y1', (d) => y(d)).attr('y2', (d) => y(d)).style('stroke', 'var(--cds-chart-grid)');
+    svg.append('line').attr('x1', left + 4).attr('x2', W - right).attr('y1', y(0)).attr('y2', y(0)).style('stroke', 'var(--cds-chart-reference)');
+    const xt = W < 420 ? 3 : 6;
+    svg.append('g').attr('transform', `translate(0,${H - 26})`).call(d3.axisBottom(x).ticks(xt).tickFormat(d3.utcFormat('%b %Y')).tickSize(0))
+      .call((a) => a.select('.domain').style('stroke', 'var(--cds-chart-axis)'));
+    svg.append('path').datum(rows).attr('d', d3.line().x((r) => x(r.date)).y((r) => y(r.cum)))
+      .style('fill', 'none').style('stroke', dash.colors[0]).style('stroke-width', 2);
+    const last = rows[rows.length - 1];
+    svg.append('circle').attr('cx', x(last.date)).attr('cy', y(last.cum)).attr('r', 3.5).style('fill', dash.colors[0]);
+    svg.append('text').attr('class', 'end').attr('x', x(last.date) + 6).attr('y', y(last.cum) + 4).text(endLabel);
+    const tip = pfTip(el);
+    const dot = svg.append('circle').attr('r', 4).style('fill', dash.colors[0]).style('display', 'none');
+    const bis = d3.bisector((r) => r.date).center;
+    svg.append('rect').attr('x', left).attr('y', 0).attr('width', W - left).attr('height', H).style('fill', 'transparent')
+      .on('pointerenter pointermove', (ev) => {
+        const [px] = d3.pointer(ev);
+        const r = rows[bis(rows, x.invert(px))];
+        dot.style('display', null).attr('cx', x(r.date)).attr('cy', y(r.cum));
+        const [bx, by] = d3.pointer(ev, el);
+        tip.show([d3.utcFormat('%b %-d, %Y')(r.date), `Cumulative ${pf.usd(r.cum)}`, r.period === 'unseen' ? 'Unseen year' : 'Year the strategy was chosen on'], bx, by);
+      })
+      .on('pointerleave', () => { dot.style('display', 'none'); tip.hide(); });
+  });
+</script>

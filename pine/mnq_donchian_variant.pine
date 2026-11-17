@@ -1,0 +1,156 @@
+//@version=6
+// MNQ Donchian breakout (variant) with webhook alerts for a TradingView -> Tradovate bridge.
+//
+// Same rules as live/engine.py and the backtest in donchian_lab.py:
+//   - Indicators use regular-hours 5-minute bars only (9:30-16:00 New York), so extended-hours
+//     bars on the chart are ignored. The channel and ATR carry across days.
+//   - Entry: a stop order one tick through the high (long) or low (short) of the previous
+//     24 RTH bars. Orders work from the 9:35 bar through the 13:25 bar, max 3 trades a day.
+//   - Initial stop 1 x ATR(14) from the entry level; after each bar close the stop tightens to
+//     the 24-bar channel low/high or close -/+ 2 x ATR, whichever is tighter. Never loosens.
+//   - Flat at the close of the 15:55 bar.
+//
+// Alerts: create ONE alert on this strategy with condition "Order fills only", message
+// {{strategy.order.alert_message}}, and your bridge's webhook URL. Each fill sends the JSON
+// built from the templates below. Test on a paper/sim account first.
+//
+// Safety check before going live: the entry message asks the bridge to place a broker-side
+// stop at the initial stop. Trailing exits are sent by this script as "exit" messages. In a
+// sim account, confirm that after an exit no stop order is left working at the broker; a
+// leftover stop could later open an unwanted position. If one is left, change the exit
+// message to your bridge's "close position and cancel orders" format.
+strategy("MNQ Donchian Variant", overlay = true, initial_capital = 50000, default_qty_type = strategy.fixed,
+     default_qty_value = 1, commission_type = strategy.commission.cash_per_contract, commission_value = 0.62,
+     slippage = 1, process_orders_on_close = false, calc_on_every_tick = false, max_bars_back = 500)
+
+// ---------------------------------------------------------------- inputs
+grpS = "Strategy (keep as tested)"
+chanLen   = input.int(24, "Entry channel (RTH bars)", minval = 2, group = grpS)
+exitLen   = input.int(24, "Exit channel (RTH bars)", minval = 2, group = grpS)
+stopAtr   = input.float(1.0, "Initial stop (ATR)", step = 0.25, group = grpS)
+trailAtr  = input.float(2.0, "Trailing stop (ATR)", step = 0.25, group = grpS)
+atrLen    = input.int(14, "ATR length", group = grpS)
+maxTrades = input.int(3, "Max trades per day", minval = 1, group = grpS)
+lastEntryBar = input.int(48, "No new entries from bar # (48 = 13:30)", group = grpS)
+qty       = input.int(1, "Contracts", minval = 1, maxval = 5, group = grpS)
+skipDates = input.string("2026-11-27,2026-12-24", "Dates not to trade (early closes), yyyy-mm-dd", group = grpS)
+
+grpW = "Webhook messages"
+wTicker = input.string("MNQ1!", "Ticker sent to the bridge", group = grpW)
+wEntry  = input.text_area('{"ticker":"{{ticker}}","action":"{{action}}","quantity":{{qty}},"orderType":"market","stopLoss":{"type":"stop","stopPrice":{{stop}}}}', "Entry message", group = grpW)
+wExit   = input.text_area('{"ticker":"{{ticker}}","action":"exit"}', "Exit message", group = grpW)
+
+// ---------------------------------------------------------------- RTH-only series
+if timeframe.period != "5"
+    runtime.error("Use a 5-minute chart. The strategy was tested on 5-minute bars.")
+
+tz = "America/New_York"
+inRth  = not na(time(timeframe.period, "0930-1600", tz))
+minOfDay = hour(time, tz) * 60 + minute(time, tz)
+int rthIdx = -1                                                  // 0 = 9:30 bar ... 77 = 15:55 bar
+if inRth
+    rthIdx := int(math.floor((minOfDay - 570) / 5.0))
+dateStr = str.format_time(time, "yyyy-MM-dd", tz)
+tradable = not str.contains(skipDates, dateStr) and dayofweek(time, tz) != dayofweek.saturday and dayofweek(time, tz) != dayofweek.sunday
+
+var array<float> hs = array.new<float>()
+var array<float> ls = array.new<float>()
+var float atr = na
+var float prevC = na
+var int dayKey = na
+var int tradesAtDayStart = 0
+var float stopLvl = na          // working stop of the open position
+var float pendR = na            // R used for the pending entry orders
+
+f_fill(string tpl, string action, float stopPx) =>
+    string s = str.replace_all(tpl, "{{ticker}}", wTicker)
+    s := str.replace_all(s, "{{action}}", action)
+    s := str.replace_all(s, "{{qty}}", str.tostring(qty))
+    str.replace_all(s, "{{stop}}", str.tostring(stopPx, format.mintick))
+
+f_round(float px, bool up) =>
+    float t = syminfo.mintick
+    up ? math.ceil(px / t) * t : math.floor(px / t) * t
+
+totalTrades = strategy.closedtrades + strategy.opentrades
+if inRth and (na(dayKey) or dayofmonth(time, tz) != dayKey)
+    dayKey := dayofmonth(time, tz)
+    tradesAtDayStart := totalTrades
+tradesToday = totalTrades - tradesAtDayStart
+
+if inRth
+    // 1) update indicators with this completed RTH bar
+    tr = na(prevC) ? high - low : math.max(high - low, math.abs(high - prevC), math.abs(low - prevC))
+    atr := na(atr) ? tr : atr + (tr - atr) / atrLen
+    prevC := close
+    array.push(hs, high)
+    array.push(ls, low)
+    if array.size(hs) > 300
+        array.shift(hs)
+        array.shift(ls)
+
+    bool ready = array.size(hs) >= math.max(chanLen, exitLen) and not na(atr)
+    int n = array.size(hs)
+    float chanHi = na
+    float chanLo = na
+    float exitLo = na
+    float exitHi = na
+    if ready
+        chanHi := array.max(array.slice(hs, n - chanLen, n))
+        chanLo := array.min(array.slice(ls, n - chanLen, n))
+        exitLo := array.min(array.slice(ls, n - exitLen, n))
+        exitHi := array.max(array.slice(hs, n - exitLen, n))
+    float pos = strategy.position_size
+
+    // 2) manage an open position: tighten the stop, flatten at 15:55
+    if pos != 0
+        strategy.cancel("Long")
+        strategy.cancel("Short")
+        if rthIdx >= 77
+            strategy.close_all(comment = "EOD", alert_message = f_fill(wExit, "exit", close), immediately = true)
+            stopLvl := na
+        else
+            if na(stopLvl)
+                stopLvl := pos > 0 ? strategy.position_avg_price - pendR : strategy.position_avg_price + pendR
+            if pos > 0
+                stopLvl := math.max(stopLvl, exitLo, close - trailAtr * atr)
+                strategy.exit("XL", from_entry = "Long", stop = f_round(stopLvl, false), comment = "stop", alert_message = f_fill(wExit, "exit", stopLvl))
+            else
+                stopLvl := math.min(stopLvl, exitHi, close + trailAtr * atr)
+                strategy.exit("XS", from_entry = "Short", stop = f_round(stopLvl, true), comment = "stop", alert_message = f_fill(wExit, "exit", stopLvl))
+    else
+        stopLvl := na
+
+    // 3) arm or cancel the breakout orders for the NEXT bar
+    int nextIdx = rthIdx + 1
+    bool canEnter = ready and tradable and pos == 0 and tradesToday < maxTrades and nextIdx >= 1 and nextIdx < lastEntryBar and rthIdx < 77
+    if canEnter
+        float R = stopAtr * atr
+        pendR := R
+        float longStop = chanHi + syminfo.mintick
+        float shortStop = chanLo - syminfo.mintick
+        float lsl = f_round(longStop - R, false)
+        float ssl = f_round(shortStop + R, true)
+        strategy.entry("Long", strategy.long, qty, stop = longStop, oca_name = "brk", oca_type = strategy.oca.cancel, comment = "L", alert_message = f_fill(wEntry, "buy", lsl))
+        strategy.entry("Short", strategy.short, qty, stop = shortStop, oca_name = "brk", oca_type = strategy.oca.cancel, comment = "S", alert_message = f_fill(wEntry, "sell", ssl))
+        strategy.exit("XL", from_entry = "Long", stop = lsl, comment = "stop", alert_message = f_fill(wExit, "exit", lsl))
+        strategy.exit("XS", from_entry = "Short", stop = ssl, comment = "stop", alert_message = f_fill(wExit, "exit", ssl))
+    else if pos == 0
+        strategy.cancel("Long")
+        strategy.cancel("Short")
+else
+    // outside regular hours: nothing works and any position (should not exist) is closed
+    strategy.cancel("Long")
+    strategy.cancel("Short")
+    if strategy.position_size != 0
+        strategy.close_all(comment = "outside RTH", alert_message = f_fill(wExit, "exit", close), immediately = true)
+
+// ---------------------------------------------------------------- plots
+float plotHi = na
+float plotLo = na
+if inRth and array.size(hs) >= chanLen
+    plotHi := array.max(array.slice(hs, array.size(hs) - chanLen, array.size(hs)))
+    plotLo := array.min(array.slice(ls, array.size(ls) - chanLen, array.size(ls)))
+plot(plotHi, "Channel high", color.new(color.teal, 0), style = plot.style_linebr)
+plot(plotLo, "Channel low", color.new(color.orange, 0), style = plot.style_linebr)
+plot(strategy.position_size != 0 ? stopLvl : na, "Stop", color.new(color.red, 0), style = plot.style_linebr, linewidth = 2)
