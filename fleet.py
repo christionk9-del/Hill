@@ -11,12 +11,14 @@ Rules modelled (generic 50K, adjust in RULES):
   funded:     $2,000 end-of-day trailing drawdown that locks at start + $100; a $1,000
               payout when the cycle has >= 5 trading days, cycle profit >= $1,000, best
               day <= 35% of cycle profit, and the balance after paying stays >= the buffer.
+              Alternative (win_days > 0): at least win_days days of >= win_amt profit in the
+              cycle instead of, or as well as, the consistency rule.
 """
 import sys
 import numpy as np
 
 RULES = dict(target=3000, dd=2000, eval_consistency=0.5, lock=100, payout=1000,
-             min_days=5, consistency=0.35, buffer=100)
+             min_days=5, consistency=0.35, buffer=100, win_days=0, win_amt=150)
 MONTH = 21
 
 
@@ -53,7 +55,7 @@ def simulate(P, N, stagger=1, rules=RULES):
     start = np.arange(N) * stagger                      # day each slot opens its first evaluation
     phase = np.zeros((paths, N), int)                   # 0 waiting, 1 eval, 2 funded
     bal = np.zeros((paths, N)); peak = np.zeros((paths, N)); best = np.zeros((paths, N))
-    base = np.zeros((paths, N)); cdays = np.zeros((paths, N), int)
+    base = np.zeros((paths, N)); cdays = np.zeros((paths, N), int); wins = np.zeros((paths, N), int)
     months = T // MONTH
     out = {k: np.zeros((paths, months)) for k in ("payouts", "evals", "passes", "eval_fail", "funded_blown", "funded")}
     for t in range(T):
@@ -76,14 +78,16 @@ def simulate(P, N, stagger=1, rules=RULES):
         peak_f = np.where(fu, np.maximum(peak, b3), peak_e)
         cd = np.where(fu, cdays + 1, cdays)
         best_f = np.where(fu, np.maximum(best, x), best_e)
+        wd = np.where(fu, wins + (x >= r["win_amt"]), wins)
         cyc = b3 - base
-        pay = (fu & ~blow & (cd >= r["min_days"]) & (cyc >= r["payout"])
+        pay = (fu & ~blow & (cd >= r["min_days"]) & (cyc >= r["payout"]) & (wd >= r["win_days"])
                & (best_f <= r["consistency"] * cyc) & (b3 - r["payout"] >= r["buffer"]))
         b3 = np.where(pay, b3 - r["payout"], b3)
         base = np.where(pay, b3, base)
         cd = np.where(pay, 0, cd)
+        wd = np.where(pay, 0, wd)
         best_f = np.where(pay, 0.0, best_f)
-        bal, peak, best, cdays = b3, peak_f, best_f, cd
+        bal, peak, best, cdays, wins = b3, peak_f, best_f, cd, wd
         out["payouts"][:, m] += pay.sum(1)
         out["eval_fail"][:, m] += fail_e.sum(1)
         out["funded_blown"][:, m] += blow.sum(1)
@@ -92,6 +96,7 @@ def simulate(P, N, stagger=1, rules=RULES):
         reset = pass_e | fail_e | blow | new
         bal = np.where(reset, 0.0, bal); peak = np.where(reset, 0.0, peak); best = np.where(reset, 0.0, best)
         base = np.where(reset, 0.0, base); cdays = np.where(reset, 0, cdays)
+        wins = np.where(reset, 0, wins)
         phase = np.where(pass_e, 2, np.where(fail_e | blow | new, 1, phase))
         out["evals"][:, m] += (fail_e | blow | new).sum(1)
         out["funded"][:, m] += (phase == 2).sum(1) / MONTH
@@ -129,6 +134,12 @@ if __name__ == "__main__":
     report("20 accts, 2 MES, one a day", simulate(2 * ES, 20, stagger=1))
     for n in (15, 25, 30, 40, 60):
         report(f"{n} accts, 1 MNQ, one a day", simulate(NQ, n, stagger=1))
+    print("\nNo consistency rule; instead 5 days of $150+ profit per payout period:")
+    alt = dict(RULES, consistency=1e9, win_days=5, win_amt=150)
+    for n in (15, 20, 25, 30, 40, 60):
+        report(f"{n} accts, 1 MNQ, one a day, 5 x $150 days", simulate(NQ, n, stagger=1, rules=alt))
+    report("20 accts, 2 MNQ, one a day, 5 x $150 days", simulate(2 * NQ, 20, stagger=1, rules=alt))
+    report("20 accts, 1 MNQ, 5 x $150 days, strict buffer", simulate(NQ, 20, stagger=1, rules=dict(alt, buffer=2100)))
     print("\nStricter payout buffer (balance must stay >= start + $2,100 after a payout):")
     strict = dict(RULES, buffer=2100)
     for n in (20, 30, 60):
