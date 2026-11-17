@@ -144,3 +144,31 @@ if __name__ == "__main__":
     strict = dict(RULES, buffer=2100)
     for n in (20, 30, 60):
         report(f"{n} accts, 1 MNQ, one a day, strict buffer", simulate(NQ, n, stagger=1, rules=strict))
+
+
+FREE = dict(RULES, consistency=1e9, win_days=0, min_days=1)   # no consistency, no minimum days
+
+
+def returns(out, fee):
+    """Per-path dollars: year-1 and year-2 net, fees, and the most cash ever out of pocket.
+    ROI = net / fees paid that year. Cash-on-cash = net / peak cash out of pocket."""
+    net = out["payouts"] * 1000 - out["evals"] * fee
+    fees = out["evals"] * fee
+    cum = np.cumsum(net, 1)
+    cash = np.maximum(-np.minimum.accumulate(cum, 1)[:, -1], fee)   # never below one evaluation
+    y1, y2 = net[:, :12].sum(1), net[:, 12:24].sum(1)
+    f1, f2 = fees[:, :12].sum(1), fees[:, 12:24].sum(1)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        roi1, roi2 = np.where(f1 > 0, y1 / f1, np.nan), np.where(f2 > 0, y2 / f2, np.nan)
+    return dict(y1=y1, y2=y2, f1=f1, f2=f2, cash=cash, roi1=roi1, roi2=roi2, cocr1=y1 / cash, cocr2=y2 / cash)
+
+
+def returns_table(P, fee, scenarios, rules=FREE):
+    print(f"{'scenario':<20}{'cash needed':>12}{'yr1 net':>9}{'yr1 ROI':>9}{'yr1 CoCR':>9}{'yr2 net':>9}{'yr2 fees':>9}"
+          f"{'yr2 ROI':>9}{'yr2 CoCR':>9}{'  yr2 ROI p10 / p90':>20}")
+    for n, size in scenarios:
+        r = returns(simulate(size * P, n, 1, rules), fee)
+        med = {k: np.nanmedian(v) for k, v in r.items()}
+        print(f"{f'{n} accts, {size} MNQ':<20}{med['cash']:>12,.0f}{med['y1']:>9,.0f}{med['roi1']*100:>8.0f}%{med['cocr1']*100:>8.0f}%"
+              f"{med['y2']:>9,.0f}{med['f2']:>9,.0f}{med['roi2']*100:>8.0f}%{med['cocr2']*100:>8.0f}%"
+              f"{np.nanpercentile(r['roi2'], 10)*100:>10.0f}% / {np.nanpercentile(r['roi2'], 90)*100:.0f}%")
