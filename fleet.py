@@ -48,11 +48,11 @@ def bootstrap(n_days, paths, T, block=20, seed=1):
     return idx
 
 
-def simulate(P, N, stagger=1, rules=RULES):
+def simulate(P, N, stagger=1, rules=RULES, offset=0):
     """P: (paths, T) daily $ P&L per account (already sized). Returns per-path monthly stats."""
     r = rules
     paths, T = P.shape
-    start = np.arange(N) * stagger                      # day each slot opens its first evaluation
+    start = np.arange(N) * stagger + offset             # day each slot opens its first evaluation
     phase = np.zeros((paths, N), int)                   # 0 waiting, 1 eval, 2 funded
     bal = np.zeros((paths, N)); peak = np.zeros((paths, N)); best = np.zeros((paths, N))
     base = np.zeros((paths, N)); cdays = np.zeros((paths, N), int); wins = np.zeros((paths, N), int)
