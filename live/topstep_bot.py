@@ -83,7 +83,7 @@ class Bot:
         self.skip = set(cfg.get("skip_dates", []))
         self.loss_limit = float(cfg.get("daily_loss_limit", 600))
         self.poll = float(cfg.get("poll_seconds", 3))
-        self.entry_mode = cfg.get("entry_mode", "market")   # "market" or "resting" (stop orders at the channel)
+        self.entry_mode = cfg.get("entry_mode", "resting")   # "market" or "resting" (stop orders at the channel)
         self.stop_file = cfg.get("stop_file", "STOP")
         self.log_dir = cfg.get("log_dir", "logs")
         os.makedirs(self.log_dir, exist_ok=True)

@@ -6,6 +6,7 @@
   "accounts": ["REPLACE-WITH-TOPSTEP-ACCOUNT-NAME-1", "REPLACE-WITH-TOPSTEP-ACCOUNT-NAME-2"],
   "contracts_per_account": 1,
   "dry_run": true,
+  "entry_mode": "resting",
   "poll_seconds": 3,
   "daily_loss_limit": 600,
   "skip_dates": ["2026-11-27", "2026-12-24"],

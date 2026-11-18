@@ -28,7 +28,7 @@ from live.topstep_bot import Bot                       # noqa: E402
 
 NDX_ID = "50c298f7-27a8-44a1-b049-ec153cf2892f"
 FEE, TARGET, PAYOUT, LOCK, EVAL_CONSISTENCY = 130.0, 3000.0, 1000.0, 100.0, 0.5
-ENTRY_MODE = os.environ.get("FORWARD_ENTRY_MODE", "market")
+ENTRY_MODE = os.environ.get("FORWARD_ENTRY_MODE", "resting")
 ROSTER = ([dict(id=f"tv{i:02d}", name=f"Paper Tradovate {i:02d}", platform="TradingView → Tradovate", drawdown=3000.0) for i in range(1, 16)]
           + [dict(id=f"ts{i:02d}", name=f"Paper Topstep {i:02d}", platform="Topstep API", drawdown=2500.0) for i in range(1, 6)])
 
