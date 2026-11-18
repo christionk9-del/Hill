@@ -3,3 +3,4 @@ live/config.json
 live/logs/
 logs/
 STOP
+forward/logs/

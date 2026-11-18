@@ -67,6 +67,82 @@
     </p>
   </header>
 
+  <section class="pf-sec" id="forward">
+    <h2>Forward test on paper</h2>
+    <p class="pf-note">Each weekday after the close, the live bot trades that day’s real Nasdaq-100 minute prices against a simulated broker. The result is applied to 20 paper accounts under the same rules as the simulation, one new account starting each trading day. Nothing here touches a real account.</p>
+    <p id="fw-status"><span data-draw="fw-days" data-source="paper_fleet" data-field="days_run" data-row="0">—</span> trading days run since <span data-draw="fw-first" data-source="paper_fleet" data-field="first_date" data-row="0">—</span>. Last day, <span data-draw="fw-last" data-source="paper_fleet" data-field="last_date" data-row="0">—</span>: <span data-draw="fw-lastpnl" data-source="paper_fleet" data-field="last_pnl" data-row="0">—</span> per contract.</p>
+    <p class="pf-note" id="fw-empty">The first paper day is recorded after today’s close, at about 4:20 pm New York time.</p>
+    <div class="pf-kpis" id="fw-totals">
+      <div class="pf-card" id="fw-card-pnl">
+        <span class="pf-label">Strategy profit, 1 contract</span>
+        <span class="pf-big" data-draw="fw-k-pnl" data-source="paper_fleet" data-field="strategy_pnl" data-row="0">—</span>
+        <span class="pf-sub"><span data-draw="fw-k-trades" data-source="paper_fleet" data-field="trades" data-row="0">—</span> trades, after costs and slippage</span>
+      </div>
+      <div class="pf-card" id="fw-card-pay">
+        <span class="pf-label">Paper payouts</span>
+        <span class="pf-big" data-draw="fw-k-pay" data-source="paper_fleet" data-field="payouts_usd" data-row="0">—</span>
+        <span class="pf-sub"><span data-draw="fw-k-npay" data-source="paper_fleet" data-field="payouts_n" data-row="0">—</span> payouts</span>
+      </div>
+      <div class="pf-card" id="fw-card-fees">
+        <span class="pf-label">Paper fees</span>
+        <span class="pf-big" data-draw="fw-k-fees" data-source="paper_fleet" data-field="fees_usd" data-row="0">—</span>
+        <span class="pf-sub"><span data-draw="fw-k-nevals" data-source="paper_fleet" data-field="evals_n" data-row="0">—</span> evaluations at $130</span>
+      </div>
+      <div class="pf-card" id="fw-card-net">
+        <span class="pf-label">Paper net</span>
+        <span class="pf-big" data-draw="fw-k-net" data-source="paper_fleet" data-field="net" data-row="0">—</span>
+        <span class="pf-sub">Return on fees <span data-draw="fw-k-roi" data-source="paper_fleet" data-field="roi" data-row="0">—</span></span>
+      </div>
+      <div class="pf-card" id="fw-card-phase">
+        <span class="pf-label">Paper accounts</span>
+        <span class="pf-big"><span data-draw="fw-k-funded" data-source="paper_fleet" data-field="funded" data-row="0">—</span> funded</span>
+        <span class="pf-sub"><span data-draw="fw-k-eval" data-source="paper_fleet" data-field="evaluating" data-row="0">—</span> in evaluation, <span data-draw="fw-k-failed" data-source="paper_fleet" data-field="failed" data-row="0">—</span> failed</span>
+      </div>
+      <div class="pf-card" id="fw-card-ppm">
+        <span class="pf-label">Paper payouts per month</span>
+        <span class="pf-big" data-draw="fw-k-ppm" data-source="paper_fleet" data-field="payouts_per_month" data-row="0">—</span>
+        <span class="pf-sub">Simulation expects <span data-draw="fw-plan-lo" data-source="plan" data-field="full_two_years" data-where="key=payouts_per_month">—</span> to <span data-draw="fw-plan-hi" data-source="plan" data-field="unseen_year" data-where="key=payouts_per_month">—</span> once all 20 are running</span>
+      </div>
+    </div>
+    <div class="pf-two">
+      <div class="pf-sec" id="fw-curve-block">
+        <h2>Paper results so far</h2>
+        <div class="pf-legend">
+          <span><i class="pf-sw" data-series="0"></i>Strategy profit, 1 contract</span>
+          <span><i class="pf-sw" data-series="1"></i>Fleet cash: payouts minus fees</span>
+        </div>
+        <div class="pf-chart" id="fw-chart" data-draw="fw-chart" data-source="paper_curve"></div>
+      </div>
+      <div class="pf-sec" id="fw-days-block">
+        <h2>Daily results</h2>
+        <div class="pf-scroll">
+          <table data-source="paper_days" data-row-key="date" aria-label="Paper daily results">
+            <thead><tr>
+              <th data-field="date">Date</th>
+              <th data-field="trades" class="num">Trades</th>
+              <th data-field="pnl" class="num">Profit, 1 contract</th>
+            </tr></thead>
+            <tbody data-draw="fw-day-rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="pf-scroll">
+      <table data-source="paper_now" data-row-key="id" aria-label="Paper accounts">
+        <thead><tr>
+          <th data-field="name">Paper account</th>
+          <th data-field="phase">Phase</th>
+          <th data-field="balance" class="num">Balance</th>
+          <th data-field="peak" class="num">Peak end-of-day</th>
+          <th data-field="drawdown" class="num">Drawdown</th>
+          <th data-field="room">Room to the floor</th>
+        </tr></thead>
+        <tbody data-draw="fw-acct-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <h2 id="real-heading">Your real accounts</h2>
   <section class="pf-kpis" id="totals" aria-label="Fleet totals">
     <div class="pf-card" id="card-payouts">
       <span class="pf-label">Payouts received</span>
@@ -611,5 +687,185 @@
         tip.show([d3.utcFormat('%b %-d, %Y')(r.date), `Cumulative ${pf.usd(r.cum)}`, r.period === 'unseen' ? 'Unseen year' : 'Year the strategy was chosen on'], bx, by);
       })
       .on('pointerleave', () => { dot.style('display', 'none'); tip.hide(); });
+  });
+</script>
+
+<script>
+  // ---------- forward test on paper
+  const pfParse = (v) => { if (Array.isArray(v)) return v; try { return JSON.parse(v || '[]'); } catch (e) { return []; } };
+  dash.calc('paper_now', {
+    inputs: ['paper_snapshots'],
+    title: 'Paper accounts now',
+    description: 'The paper accounts from the latest forward-test day, with room above the trailing floor.',
+    fn: (paper_snapshots) => {
+      const latest = [...paper_snapshots].sort((a, b) => (String(a.date) < String(b.date) ? 1 : -1))[0];
+      if (!latest) return [];
+      const accts = Array.isArray(latest.accounts) ? latest.accounts : (() => { try { return JSON.parse(latest.accounts || '[]'); } catch (e) { return []; } })();
+      return accts.map((a) => {
+        const live = a.phase === 'Evaluation' || a.phase === 'Funded';
+        const lock = a.phase === 'Funded' ? a.start + 100 : a.start;
+        const floor = live ? Math.min(a.peak - a.drawdown, lock) : null;
+        return {id: a.id, name: a.name, phase: a.phase, balance: a.balance, peak: a.peak, drawdown: a.drawdown,
+          room: floor === null ? null : Math.round((a.balance - floor) * 100) / 100, order: a.order};
+      }).sort((x, y) => x.order - y.order);
+    },
+  });
+
+  dash.calc('paper_fleet', {
+    inputs: ['paper_days', 'paper_ledger', 'paper_now'],
+    title: 'Paper fleet totals',
+    description: 'Forward-test days, strategy profit per contract, and paper payouts and fees.',
+    fn: (paper_days, paper_ledger, paper_now) => {
+      const days = [...paper_days].sort((a, b) => (String(a.date) < String(b.date) ? -1 : 1));
+      const count = (p) => paper_now.filter((a) => a.phase === p).length;
+      let pay = 0, npay = 0, fees = 0, nevals = 0, cum = 0, low = 0;
+      const led = [...paper_ledger].sort((a, b) => (String(a.date) < String(b.date) ? -1 : 1));
+      for (const r of led) {
+        const amt = Number(r.amount) || 0;
+        if (r.kind === 'Payout') { pay += amt; npay += 1; cum += amt; } else { fees += amt; nevals += r.kind === 'Evaluation fee' ? 1 : 0; cum -= amt; }
+        low = Math.min(low, cum);
+      }
+      const last = days[days.length - 1];
+      return [{
+        days_run: days.length, first_date: days.length ? days[0].date : null, last_date: last ? last.date : null,
+        last_pnl: last ? Number(last.pnl) : null,
+        strategy_pnl: days.reduce((s, d) => s + (Number(d.pnl) || 0), 0), trades: days.reduce((s, d) => s + (Number(d.trades) || 0), 0),
+        payouts_usd: pay, payouts_n: npay, fees_usd: fees, evals_n: nevals, net: pay - fees, roi: fees > 0 ? (pay - fees) / fees : null,
+        cash_needed: -low, payouts_per_month: days.length ? npay / (days.length / 21) : null,
+        funded: count('Funded'), evaluating: count('Evaluation'), failed: count('Failed'),
+      }];
+    },
+  });
+
+  dash.calc('paper_curve', {
+    inputs: ['paper_days', 'paper_ledger'],
+    title: 'Paper results by day',
+    description: 'Cumulative strategy profit per contract and cumulative fleet cash (payouts minus fees) by forward-test day.',
+    fn: (paper_days, paper_ledger) => {
+      const days = [...paper_days].sort((a, b) => (String(a.date) < String(b.date) ? -1 : 1));
+      let p = 0, cash = 0;
+      return days.map((d) => {
+        p += Number(d.pnl) || 0;
+        for (const r of paper_ledger) if (r.date === d.date) cash += (r.kind === 'Payout' ? 1 : -1) * (Number(r.amount) || 0);
+        return {date: d.date, cumulative: Math.round(p * 100) / 100, cash: Math.round(cash * 100) / 100};
+      });
+    },
+  });
+
+  const fwFigures = [
+    ['fw-days', 'days_run', pf.int], ['fw-first', 'first_date', (v) => v || '—'], ['fw-last', 'last_date', (v) => v || '—'], ['fw-lastpnl', 'last_pnl', pf.usd, true],
+    ['fw-k-pnl', 'strategy_pnl', pf.usd, true], ['fw-k-trades', 'trades', pf.int], ['fw-k-pay', 'payouts_usd', pf.usd], ['fw-k-npay', 'payouts_n', pf.int],
+    ['fw-k-fees', 'fees_usd', pf.usd], ['fw-k-nevals', 'evals_n', pf.int], ['fw-k-net', 'net', pf.usd, true], ['fw-k-roi', 'roi', pf.pct, true],
+    ['fw-k-funded', 'funded', pf.int], ['fw-k-eval', 'evaluating', pf.int], ['fw-k-failed', 'failed', pf.int], ['fw-k-ppm', 'payouts_per_month', pf.one],
+  ];
+  for (const [name, key, fmt, tone] of fwFigures) {
+    dash.draw(name, (el) => {
+      pf.loading(el, ['paper_days', 'paper_ledger', 'paper_snapshots']);
+      const r = pf.first('paper_fleet');
+      const v = r ? r[key] : null;
+      el.textContent = r && r.days_run ? fmt(v) : '—';
+      if (tone) { el.classList.toggle('good', Number.isFinite(v) && v > 0); el.classList.toggle('bad', Number.isFinite(v) && v < 0); }
+    });
+  }
+  for (const [name, col] of [['fw-plan-lo', 'full_two_years'], ['fw-plan-hi', 'unseen_year']]) {
+    dash.draw(name, (el) => {
+      const g = dash.data('plan');
+      const r = g.status === 'ok' ? g.data.find((x) => x.key === 'payouts_per_month') : null;
+      el.textContent = r ? pf.one(Number(r[col])) : '—';
+    });
+  }
+  dash.onData(() => {
+    const g = dash.data('paper_days');
+    const empty = g.status === 'ok' && g.data.length === 0;
+    document.querySelectorAll('#fw-empty').forEach((e) => { e.hidden = !empty; });
+    document.querySelectorAll('#fw-status, #fw-totals, #fw-curve-block, #fw-days-block').forEach((e) => { e.hidden = empty; });
+  });
+
+  dash.draw('fw-day-rows', (tb) => {
+    const g = dash.data('paper_days');
+    tb.replaceChildren();
+    if (g.status !== 'ok' || !Array.isArray(g.data)) return;
+    for (const d of [...g.data].sort((a, b) => (String(a.date) < String(b.date) ? 1 : -1))) {
+      const tr = document.createElement('tr');
+      tr.dataset.key = encodeURIComponent(d.date);
+      const v = Number(d.pnl) || 0;
+      for (const [text, cls] of [[String(d.date), ''], [pf.int(Number(d.trades) || 0), 'num'], [pf.usd(v), 'num ' + (v > 0 ? 'good' : v < 0 ? 'bad' : '')]]) {
+        const td = document.createElement('td'); td.className = cls; td.textContent = text; tr.append(td);
+      }
+      tb.append(tr);
+    }
+  });
+
+  dash.draw('fw-acct-rows', (tb) => {
+    const g = dash.data('paper_now');
+    tb.replaceChildren();
+    if (g.status !== 'ok' || !Array.isArray(g.data)) return;
+    const chip = {Funded: 'funded', Evaluation: 'eval', Failed: 'failed'};
+    for (const a of g.data) {
+      const tr = document.createElement('tr');
+      tr.dataset.key = encodeURIComponent(a.id);
+      const cell = (text, cls) => { const td = document.createElement('td'); if (cls) td.className = cls; td.textContent = text; tr.append(td); return td; };
+      cell(a.name);
+      const ph = cell('');
+      const c = document.createElement('span'); c.className = 'pf-chip ' + (chip[a.phase] || ''); c.textContent = a.phase; ph.append(c);
+      cell(pf.usd(a.balance), 'num'); cell(pf.usd(a.peak), 'num'); cell(pf.usd(a.drawdown), 'num');
+      const rc = cell('');
+      if (a.room === null) { rc.textContent = '—'; } else {
+        const wrap = document.createElement('div'); wrap.className = 'pf-room';
+        const share = a.drawdown ? Math.max(0, Math.min(1, a.room / a.drawdown)) : 0;
+        const bar = document.createElement('div'); bar.className = 'pf-bar' + (share < 0.25 ? ' bad' : share < 0.5 ? ' warn' : '');
+        const fill = document.createElement('span'); fill.style.width = (share * 100).toFixed(1) + '%'; bar.append(fill);
+        const t = document.createElement('span'); t.textContent = pf.usd(a.room);
+        wrap.append(bar, t); rc.append(wrap);
+      }
+      tb.append(tr);
+    }
+  });
+
+  dash.draw('fw-chart', (el) => {
+    const g = dash.data('paper_curve');
+    el.replaceChildren();
+    if (g.status !== 'ok') { el.textContent = g.status === 'error' ? 'Failed to load' : '—'; return; }
+    const parse = d3.utcParse('%Y-%m-%d');
+    const rows = g.data.map((r) => ({date: parse(r.date), cumulative: Number(r.cumulative), cash: Number(r.cash)})).filter((r) => r.date);
+    if (!rows.length) return;
+    const W = Math.max(280, el.clientWidth), H = 240;
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`)
+      .attr('role', 'img').attr('aria-label', 'Line chart: paper strategy profit and fleet cash by day');
+    const y = d3.scaleLinear().domain(d3.extent([0, ...rows.map((r) => r.cumulative), ...rows.map((r) => r.cash)])).nice().range([H - 26, 12]);
+    const yAxis = svg.append('g').call(d3.axisLeft(y).ticks(5).tickFormat((v) => pf.usd(v)).tickSize(0));
+    yAxis.select('.domain').remove();
+    const left = Math.ceil(yAxis.node().getBBox().width) + 8;
+    yAxis.attr('transform', `translate(${left},0)`);
+    const labels = [pf.usd(rows[rows.length - 1].cumulative), pf.usd(rows[rows.length - 1].cash)];
+    const probe = svg.append('text').attr('class', 'end').text(labels[0].length > labels[1].length ? labels[0] : labels[1]);
+    const right = Math.ceil(probe.node().getComputedTextLength()) + 10;
+    probe.remove();
+    const dom = d3.extent(rows, (r) => r.date);
+    if (+dom[0] === +dom[1]) dom[1] = new Date(+dom[0] + 864e5);
+    const x = d3.scaleUtc().domain(dom).range([left + 4, W - right]);
+    svg.append('g').selectAll('line').data(y.ticks(5)).join('line')
+      .attr('x1', left + 4).attr('x2', W - right).attr('y1', (d) => y(d)).attr('y2', (d) => y(d)).style('stroke', 'var(--cds-chart-grid)');
+    svg.append('g').attr('transform', `translate(0,${H - 26})`).call(d3.axisBottom(x).ticks(W < 420 ? 3 : 6).tickFormat(d3.utcFormat('%b %-d')).tickSize(0))
+      .call((a) => a.select('.domain').style('stroke', 'var(--cds-chart-axis)'));
+    const series = [['cumulative', 0], ['cash', 1]];
+    const ends = series.map(([k]) => y(rows[rows.length - 1][k]));
+    if (Math.abs(ends[0] - ends[1]) < 14) { const mid = (ends[0] + ends[1]) / 2; ends[0] = mid - 7 * Math.sign(ends[1] - ends[0] || 1); ends[1] = mid + 7 * Math.sign(ends[1] - ends[0] || 1); }
+    series.forEach(([k, i]) => {
+      svg.append('path').datum(rows).attr('d', d3.line().x((r) => x(r.date)).y((r) => y(r[k])))
+        .style('fill', 'none').style('stroke', dash.colors[i]).style('stroke-width', 2);
+      svg.selectAll(null).data(rows).join('circle').attr('cx', (r) => x(r.date)).attr('cy', (r) => y(r[k])).attr('r', rows.length > 40 ? 0 : 2.5).style('fill', dash.colors[i]);
+      svg.append('text').attr('class', 'end').attr('x', x(rows[rows.length - 1].date) + 6).attr('y', ends[i] + 4).text(labels[i]);
+    });
+    const tip = pfTip(el);
+    const bis = d3.bisector((r) => r.date).center;
+    svg.append('rect').attr('x', left).attr('y', 0).attr('width', W - left).attr('height', H).style('fill', 'transparent')
+      .on('pointerenter pointermove', (ev) => {
+        const [px] = d3.pointer(ev);
+        const r = rows[bis(rows, x.invert(px))];
+        const [bx, by] = d3.pointer(ev, el);
+        tip.show([d3.utcFormat('%b %-d, %Y')(r.date), `Strategy ${pf.usd(r.cumulative)}`, `Fleet cash ${pf.usd(r.cash)}`], bx, by);
+      })
+      .on('pointerleave', () => tip.hide());
   });
 </script>

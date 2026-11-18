@@ -64,6 +64,8 @@ class Account:
         self.day_start_balance = None
         self.disabled_today = False
         self.entry_px = None
+        self.entry_ids = {}            # resting breakout orders: side (+1/-1) -> order id
+        self.entry_lv = {}             # side -> working price
 
 
 class Bot:
@@ -81,6 +83,7 @@ class Bot:
         self.skip = set(cfg.get("skip_dates", []))
         self.loss_limit = float(cfg.get("daily_loss_limit", 600))
         self.poll = float(cfg.get("poll_seconds", 3))
+        self.entry_mode = cfg.get("entry_mode", "market")   # "market" or "resting" (stop orders at the channel)
         self.stop_file = cfg.get("stop_file", "STOP")
         self.log_dir = cfg.get("log_dir", "logs")
         os.makedirs(self.log_dir, exist_ok=True)
@@ -191,6 +194,7 @@ class Bot:
             else:                                     # bar in progress
                 if self.cur != ts:
                     self._begin(b)
+                    self._arm_entries()
                 self._price(b)
         hm = now.hour * 60 + now.minute
         if hm >= 16 * 60 + 2 and not self.eod_done:
@@ -264,7 +268,81 @@ class Bot:
                         self._exit(a, ev.reason)
             self.follow = True
 
+    # ---------------------------------------------------------------- resting breakout orders
+    def _arm_entries(self):
+        if self.entry_mode != "resting":
+            return
+        lv = self.engine.entry_levels() if self.follow else None
+        for a in self.accounts:
+            if a.in_pos or a.disabled_today or lv is None:
+                self._disarm(a)
+                continue
+            want = {1: -int(-lv[0] / self.tick) * self.tick, -1: int(lv[1] / self.tick) * self.tick}
+            for side, px in want.items():
+                px = round(px, 10)
+                if self.dry:
+                    a.entry_lv[side] = px
+                    continue
+                try:
+                    if side in a.entry_ids:
+                        if a.entry_lv.get(side) != px:
+                            self.api.modify_stop(a.id, a.entry_ids[side], px)
+                            a.entry_lv[side] = px
+                    else:
+                        a.entry_ids[side] = self.api.place(a.id, self.contract["id"], STOP, BUY if side > 0 else SELL, self.size, stop_price=px)
+                        a.entry_lv[side] = px
+                except ApiError as e:
+                    self.log.warning(f"{a.name}: could not arm {'buy' if side > 0 else 'sell'} stop at {px}: {e}")
+                    a.entry_ids.pop(side, None)
+                    a.entry_lv.pop(side, None)
+
+    def _disarm(self, a):
+        for side, oid in list(a.entry_ids.items()):
+            if not self.dry:
+                try:
+                    self.api.cancel(a.id, oid)
+                except ApiError as e:
+                    self.log.warning(f"{a.name}: cancel entry {oid} failed: {e}")
+        a.entry_ids, a.entry_lv = {}, {}
+
+    def _enter_resting(self, a, ev):
+        """The model saw the breakout; the account's resting stop should have filled."""
+        if self.dry:
+            self.log.info(f"[dry] {a.name}: resting {'buy' if ev.side > 0 else 'sell'} stop at {a.entry_lv.get(ev.side)} fills; stop at {self._round_stop(ev.stop, ev.side)}")
+            a.in_pos, a.stop_px, a.entry_px = True, self._round_stop(ev.stop, ev.side), ev.price
+            a.entry_ids, a.entry_lv = {}, {}
+            return
+        pos = None
+        for _ in range(4):
+            pos = self._position(a)
+            if pos:
+                break
+            self.clock.sleep(1)
+        if pos and (int(pos.get("type", 0)) == (LONG if ev.side > 0 else SHORT)):
+            other = a.entry_ids.get(-ev.side)
+            if other is not None:
+                try:
+                    self.api.cancel(a.id, other)
+                except ApiError as e:
+                    self.log.warning(f"{a.name}: cancel opposite entry failed: {e}")
+            a.entry_ids, a.entry_lv = {}, {}
+            a.in_pos, a.entry_px = True, float(pos["averagePrice"])
+            stop_px = self._round_stop(ev.stop, ev.side)
+            a.stop_id = self.api.place(a.id, self.contract["id"], STOP, SELL if ev.side > 0 else BUY, int(pos["size"]), stop_price=stop_px)
+            a.stop_px = stop_px
+            self.log.info(f"{a.name}: resting entry filled {pos['size']} at {a.entry_px:.2f}; stop {stop_px}")
+            return
+        if pos:
+            self.log.warning(f"{a.name}: position on the wrong side; flattening")
+            self._flatten(a, "wrong side")
+            return
+        self.log.warning(f"{a.name}: resting entry not filled; cancelling it and entering at market")
+        self._disarm(a)
+        self._enter(a, ev)
+
     def _enter(self, a, ev):
+        if self.entry_mode == "resting" and (a.entry_ids or self.dry and a.entry_lv):
+            return self._enter_resting(a, ev)
         side = BUY if ev.side > 0 else SELL
         tag = f"dv-{self.clock.now():%Y%m%d%H%M%S}-{a.id}"
         stop_px = self._round_stop(ev.stop, ev.side)
@@ -326,6 +404,7 @@ class Bot:
                 self.api.close_position(a.id, self.contract["id"])
                 self.clock.sleep(1)
             self._cancel_all(a)
+            a.entry_ids, a.entry_lv = {}, {}
             if not self._position(a):
                 if attempt or reason:
                     self.log.info(f"{a.name}: flat ({reason})")
@@ -388,7 +467,13 @@ class Bot:
                 self.log.info(f"{a.name}: stopped out at the broker")
             a.in_pos, a.stop_id, a.stop_px = False, None, None
             if self.engine.pos is None:
-                self._cancel_all(a)
+                keep = set(a.entry_ids.values())
+                for o in self.api.open_orders(a.id):
+                    if o.get("contractId") == self.contract["id"] and o["id"] not in keep:
+                        try:
+                            self.api.cancel(a.id, o["id"])
+                        except ApiError as e:
+                            self.log.warning(f"{a.name}: cancel {o['id']} failed: {e}")
 
     def _reconcile(self):
         for a in self.accounts:

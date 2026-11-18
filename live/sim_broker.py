@@ -171,7 +171,7 @@ def load():
     return five, m.set_index("ts")
 
 
-def run_day(day, five, minutes, poll=20, dry=False, fail_rate=0.0):
+def run_day(day, five, minutes, poll=20, dry=False, fail_rate=0.0, entry_mode="market"):
     m = minutes[minutes.index.date == day]
     start = pd.Timestamp(f"{day} 09:24", tz=NY).to_pydatetime()
     clock = SimClock(start)
@@ -180,7 +180,7 @@ def run_day(day, five, minutes, poll=20, dry=False, fail_rate=0.0):
     log = logging.getLogger(f"sim-{day}")
     log.setLevel(logging.WARNING)
     cfg = dict(accounts=["SIM-1", "SIM-2"], dry_run=dry, poll_seconds=poll, log_dir="/tmp/claude-0/-home-user-Hill/803afca5-f875-54ad-bfda-380b3ec237b9/scratchpad/simlogs",
-               stop_file="/nonexistent/STOP", contracts_per_account=1, daily_loss_limit=600)
+               stop_file="/nonexistent/STOP", contracts_per_account=1, daily_loss_limit=600, entry_mode=entry_mode)
     bot = Bot(cfg, api, clock, log)
     bot.start()
     bot.run(until=pd.Timestamp(f"{day} 16:06", tz=NY).to_pydatetime())
@@ -196,10 +196,11 @@ if __name__ == "__main__":
     five, minutes = load()
     days = sorted(set(minutes.index.date))
     fail = float(sys.argv[1]) if len(sys.argv) > 1 else 0.0
+    mode = sys.argv[2] if len(sys.argv) > 2 else "market"
     if fail:
         days = days[::4]
         print(f"injecting API failures on {fail:.0%} of calls, {len(days)} days")
-    rows = [run_day(d, five, minutes, fail_rate=fail) for d in days]
+    rows = [run_day(d, five, minutes, fail_rate=fail, entry_mode=mode) for d in days]
     r = pd.DataFrame(rows)
     pd.set_option("display.width", 160)
     print(r.to_string(index=False, float_format=lambda v: f"{v:,.1f}"))
