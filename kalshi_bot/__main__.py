@@ -201,6 +201,16 @@ def cmd_updown_backtest(a):
     updown.run_backtest(a.series, a.product)
 
 
+def cmd_forward(a):
+    from . import forward
+    forward.run(hours=a.hours)
+
+
+def cmd_forward_report(a):
+    from . import forward
+    forward.report()
+
+
 def main():
     p = argparse.ArgumentParser(prog="kalshi_bot")
     sp = p.add_subparsers(dest="cmd", required=True)
@@ -234,6 +244,9 @@ def main():
     bt.add_argument("--download", action="store_true"); bt.add_argument("--data-dir", default="data/hf")
     bt.set_defaults(f=cmd_backtest)
     pl = sp.add_parser("pnl", help="P&L replay of the $5/day plan on real trades")
+    fw = sp.add_parser("forward", help="live paper forward test on all 15-min up/down markets")
+    fw.add_argument("--hours", type=float, default=3.0); fw.set_defaults(f=cmd_forward)
+    sp.add_parser("forward-report").set_defaults(f=cmd_forward_report)
     ub = sp.add_parser("updown-backtest", help="binary-option model vs real Kalshi up/down trades")
     ub.add_argument("--series", default="KXBTC15M"); ub.add_argument("--product", default="BTC-USD")
     ub.set_defaults(f=cmd_updown_backtest)

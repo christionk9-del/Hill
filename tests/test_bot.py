@@ -111,3 +111,20 @@ def test_updown_fair_value():
     assert fair_up(100.5, 100, 10, 0.001) > 0.9                     # 0.5% above, low vol
     assert fair_up(100.5, 100, 10, 0.01) < 0.6                      # same gap, high vol
     assert fair_up(99, 100, 0, 0.001) == 0.0
+
+
+def test_forward_strategies_and_fee():
+    import time
+    from kalshi_bot import forward as fw
+    assert fw.taker_fee(2, 0.45) == 0.04
+    now = time.time()
+    class F:  # fake feed: BTC well above strike -> YES underpriced at 40c
+        spot = {"BTC": (101.0, now)}; sigma = {"BTC": 0.001}
+    close = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now + 600))
+    m = {"close_time": close, "floor_strike": 100.0, "yes_ask_dollars": "0.40", "no_ask_dollars": "0.62"}
+    got = {(s, side) for s, side, _ in fw.strategies(m, "KXBTC15M", now, F)}
+    assert ("model_edge_10", "yes") in got and not any(side == "no" and s.startswith("model") for s, side in got)
+    m2 = dict(m, close_time=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now + 120)),
+              yes_ask_dollars="0.92", no_ask_dollars="0.09")
+    got2 = {(s, side) for s, side, _ in fw.strategies(m2, "KXINX15M", now, F)}
+    assert ("late_favorite", "yes") in got2 and ("longshot_10c", "no") in got2
