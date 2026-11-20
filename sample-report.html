@@ -1,0 +1,137 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Security Assessment — Acme Widgets (demo)</title>
+<style>
+:root{--bg:#f8fafc;--card:#fff;--fg:#101828;--mut:#667085;--bd:#e4e7ec}
+@media (prefers-color-scheme:dark){:root{--bg:#0c111d;--card:#161b26;--fg:#f5f5f6;--mut:#94969c;--bd:#2b303b}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:960px;margin:0 auto;padding:32px 16px}h1{margin:0 0 4px;font-size:26px}h2{margin-top:36px;font-size:18px}
+.sub{color:var(--mut)}.risk{display:inline-block;margin-top:12px;padding:4px 12px;border-radius:999px;color:#fff;font-weight:600;background:#b42318}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px 20px}
+.tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.tile{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;text-align:center}
+.tile .n{font-size:28px;font-weight:700}.tile .l{color:var(--mut);font-size:13px}
+.f{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px 16px;margin:10px 0}.f summary{cursor:pointer;font-weight:600}
+.sev{color:#fff;border-radius:6px;padding:1px 8px;font-size:12px;margin-right:6px}.id{float:right;color:var(--mut);font-weight:400;font-size:12px}
+.meta{color:var(--mut);font-size:13px}code{font-size:13px;word-break:break-all}footer{margin-top:40px;color:var(--mut);font-size:13px}
+@media (max-width:600px){.tiles{grid-template-columns:repeat(3,1fr)}.id{float:none;display:block}}
+</style></head><body><main>
+<h1>Security Assessment — Acme Widgets (demo)</h1>
+<div class="sub">Engagement DEMO-2026-001 · authorized by Jane Doe, CISO (demo) · 2026-11-20T19:25:49Z</div>
+<div class="risk">Overall risk: CRITICAL</div>
+<h2>Executive summary</h2><div class="card"><p>Automated baseline scan identified 28 potential issue(s): 3 critical, 11 high, 7 medium, 7 low. Results have not been reviewed by the AI analyst (offline mode).</p><b>Priority actions</b><ol><li>Successful SSH login after brute force from 203.0.113.45 — logs/auth.log:46</li><li>Hardcoded credential: AWS access key ID — app/app.py:10</li><li>Hardcoded credential: AWS secret access key — app/app.py:11</li><li>Secret baked into image — app/Dockerfile:2</li><li>Privileged container — app/docker-compose.yml:4</li></ol></div>
+<h2>Findings by severity</h2><div class="tiles"><div class="tile"><div class="n" style="color:#b42318">3</div><div class="l">Critical</div></div><div class="tile"><div class="n" style="color:#d92d20">11</div><div class="l">High</div></div><div class="tile"><div class="n" style="color:#dc6803">7</div><div class="l">Medium</div></div><div class="tile"><div class="n" style="color:#1570ef">7</div><div class="l">Low</div></div><div class="tile"><div class="n" style="color:#667085">0</div><div class="l">Info</div></div></div>
+<h2>Findings (28)</h2><details class="f" open>
+<summary><span class="sev" style="background:#b42318">CRITICAL</span> Successful SSH login after brute force from 203.0.113.45<span class="id">SNT-F5A19FDA</span></summary>
+<p class="meta"><code>logs/auth.log:46</code> · logs · CWE-307 · scanner · open</p>
+<p><b>Evidence.</b> <code>Account &#x27;deploy&#x27; logged in from 203.0.113.45 after 40 failed attempts from the same address.</code></p>
+<p><b>Fix.</b> Treat as a probable compromise: isolate the host, rotate credentials for this account, review the session&#x27;s commands and persistence mechanisms, and begin incident response.</p></details><details class="f" open>
+<summary><span class="sev" style="background:#b42318">CRITICAL</span> Hardcoded credential: AWS access key ID<span class="id">SNT-5A8EDD65</span></summary>
+<p class="meta"><code>app/app.py:10</code> · secrets · CWE-798 · scanner · open</p>
+<p><b>Evidence.</b> <code>AWS_ACCESS_KEY_ID = &quot;AKIA…[REDACTED 20 chars]&quot;</code></p>
+<p><b>Fix.</b> Revoke and rotate this credential immediately, purge it from version-control history, and load it at runtime from a secrets manager (e.g. Vault, AWS Secrets Manager) or environment.</p></details><details class="f" open>
+<summary><span class="sev" style="background:#b42318">CRITICAL</span> Hardcoded credential: AWS secret access key<span class="id">SNT-426B2536</span></summary>
+<p class="meta"><code>app/app.py:11</code> · secrets · CWE-798 · scanner · open</p>
+<p><b>Evidence.</b> <code>AWS_SECRET_ACCESS_KEY = &quot;wJal…[REDACTED 40 chars]&quot;</code></p>
+<p><b>Fix.</b> Revoke and rotate this credential immediately, purge it from version-control history, and load it at runtime from a secrets manager (e.g. Vault, AWS Secrets Manager) or environment.</p></details><details class="f" open>
+<summary><span class="sev" style="background:#d92d20">HIGH</span> Secret baked into image<span class="id">SNT-F7C1CE21</span></summary>
+<p class="meta"><code>app/Dockerfile:2</code> · configuration · CWE-798 · scanner · open</p>
+<p><b>Evidence.</b> <code>ENV API_TOKEN=…</code></p>
+<p><b>Fix.</b> Use build secrets (--secret) or runtime injection; never ENV/ARG for secrets.</p></details><details class="f" open>
+<summary><span class="sev" style="background:#d92d20">HIGH</span> Privileged container<span class="id">SNT-D511A121</span></summary>
+<p class="meta"><code>app/docker-compose.yml:4</code> · configuration · CWE-250 · scanner · open</p>
+<p><b>Evidence.</b> <code>privileged: true</code></p>
+<p><b>Fix.</b> Remove &#x27;privileged: true&#x27;; grant only specific capabilities.</p></details><details class="f" open>
+<summary><span class="sev" style="background:#d92d20">HIGH</span> Docker socket mounted into container<span class="id">SNT-34B9075B</span></summary>
+<p class="meta"><code>app/docker-compose.yml:6</code> · configuration · CWE-250 · scanner · open</p>
+<p><b>Evidence.</b> <code>- /var/run/docker.sock:/var/run/docker.sock</code></p>
+<p><b>Fix.</b> Avoid mounting the Docker socket; it grants root on the host.</p></details><details class="f" open>
+<summary><span class="sev" style="background:#d92d20">HIGH</span> Deprecated TLS protocol enabled<span class="id">SNT-70CEF9BE</span></summary>
+<p class="meta"><code>config/nginx.conf:6</code> · configuration · CWE-327 · scanner · open</p>
+<p><b>Evidence.</b> <code>ssl_protocols TLSv1 TLSv1.1 TLSv1.2;</code></p>
+<p><b>Fix.</b> Use &#x27;ssl_protocols TLSv1.2 TLSv1.3;&#x27;.</p></details><details class="f" open>
+<summary><span class="sev" style="background:#d92d20">HIGH</span> Weak TLS cipher suites<span class="id">SNT-311108C0</span></summary>
+<p class="meta"><code>config/nginx.conf:7</code> · configuration · CWE-327 · scanner · open</p>
+<p><b>Evidence.</b> <code>ssl_ciphers HIGH:!aNULL:RC4;</code></p>
+<p><b>Fix.</b> Use a modern cipher list (e.g. Mozilla &#x27;intermediate&#x27;).</p></details><details class="f" open>
+<summary><span class="sev" style="background:#d92d20">HIGH</span> SSH permits root login<span class="id">SNT-51DE58C8</span></summary>
+<p class="meta"><code>config/sshd_config:3</code> · configuration · CWE-250 · scanner · open</p>
+<p><b>Evidence.</b> <code>PermitRootLogin yes</code></p>
+<p><b>Fix.</b> Set &#x27;PermitRootLogin no&#x27; (or &#x27;prohibit-password&#x27;).</p></details><details class="f" open>
+<summary><span class="sev" style="background:#d92d20">HIGH</span> SQL injection probe from 198.51.100.23 (server returned 2xx)<span class="id">SNT-230AE1C2</span></summary>
+<p class="meta"><code>logs/access.log:2</code> · logs · CWE-89 · scanner · open</p>
+<p><b>Evidence.</b> <code>2 request(s), 2 with 2xx status. Example: /orders?customer=x&#x27;%20OR%20&#x27;1&#x27;=&#x27;1 -&gt; 200</code></p>
+<p><b>Fix.</b> Verify the endpoint is not vulnerable (2xx responses to attack payloads warrant urgent review), apply WAF rules, and block or rate-limit the source.</p></details><details class="f" open>
+<summary><span class="sev" style="background:#d92d20">HIGH</span> Command injection probe from 192.0.2.77 (server returned 2xx)<span class="id">SNT-B5ECF735</span></summary>
+<p class="meta"><code>logs/access.log:7</code> · logs · CWE-78 · scanner · open</p>
+<p><b>Evidence.</b> <code>1 request(s), 1 with 2xx status. Example: /admin/ping?host=127.0.0.1;cat%20/etc/shadow -&gt; 200</code></p>
+<p><b>Fix.</b> Verify the endpoint is not vulnerable (2xx responses to attack payloads warrant urgent review), apply WAF rules, and block or rate-limit the source.</p></details><details class="f" open>
+<summary><span class="sev" style="background:#d92d20">HIGH</span> Direct root SSH login<span class="id">SNT-6D088FF0</span></summary>
+<p class="meta"><code>logs/auth.log:48</code> · logs · CWE-250 · scanner · open</p>
+<p><b>Evidence.</b> <code>root logged in over SSH from 192.0.2.10.</code></p>
+<p><b>Fix.</b> Set PermitRootLogin no and require named accounts with sudo for accountability.</p></details><details class="f" open>
+<summary><span class="sev" style="background:#d92d20">HIGH</span> Hardcoded credential: Password in connection string<span class="id">SNT-8F8A5015</span></summary>
+<p class="meta"><code>app/app.py:12</code> · secrets · CWE-798 · scanner · open</p>
+<p><b>Evidence.</b> <code>DATABASE_URL = &quot;postgres://orders_admin:Wint…[REDACTED 11 chars]@db.internal.acme.example:5432/orders&quot;</code></p>
+<p><b>Fix.</b> Revoke and rotate this credential immediately, purge it from version-control history, and load it at runtime from a secrets manager (e.g. Vault, AWS Secrets Manager) or environment.</p></details><details class="f" open>
+<summary><span class="sev" style="background:#d92d20">HIGH</span> Hardcoded credential: Hardcoded password/secret assignment<span class="id">SNT-FF0946C5</span></summary>
+<p class="meta"><code>app/tests/test_settings.py:2</code> · secrets · CWE-798 · scanner · open</p>
+<p><b>Evidence.</b> <code>TEST_DB_PASSWORD = &quot;loca…[REDACTED 18 chars]&quot;</code></p>
+<p><b>Fix.</b> Revoke and rotate this credential immediately, purge it from version-control history, and load it at runtime from a secrets manager (e.g. Vault, AWS Secrets Manager) or environment.</p></details><details class="f" >
+<summary><span class="sev" style="background:#dc6803">MEDIUM</span> Container runs as root<span class="id">SNT-C980C420</span></summary>
+<p class="meta"><code>app/Dockerfile</code> · configuration · CWE-250 · scanner · open</p>
+<p><b>Evidence.</b> <code>No non-root USER instruction found.</code></p>
+<p><b>Fix.</b> Add a non-root USER instruction before the entrypoint.</p></details><details class="f" >
+<summary><span class="sev" style="background:#dc6803">MEDIUM</span> Remote ADD in Dockerfile<span class="id">SNT-0A6110D5</span></summary>
+<p class="meta"><code>app/Dockerfile:3</code> · configuration · CWE-494 · scanner · open</p>
+<p><b>Evidence.</b> <code>ADD https://example.com/install.sh /tmp/install.sh</code></p>
+<p><b>Fix.</b> Use RUN curl with checksum verification, or COPY a vetted artifact.</p></details><details class="f" >
+<summary><span class="sev" style="background:#dc6803">MEDIUM</span> Pipe-to-shell install<span class="id">SNT-537D87C6</span></summary>
+<p class="meta"><code>app/Dockerfile:4</code> · configuration · CWE-494 · scanner · open</p>
+<p><b>Evidence.</b> <code>RUN curl -sSL https://example.com/bootstrap.sh | bash</code></p>
+<p><b>Fix.</b> Download, verify a checksum/signature, then execute.</p></details><details class="f" >
+<summary><span class="sev" style="background:#dc6803">MEDIUM</span> Database port exposed on all interfaces<span class="id">SNT-74689D11</span></summary>
+<p class="meta"><code>app/docker-compose.yml:10</code> · configuration · CWE-668 · scanner · open</p>
+<p><b>Evidence.</b> <code>- &quot;0.0.0.0:5432:5432&quot;</code></p>
+<p><b>Fix.</b> Bind database ports to 127.0.0.1 or an internal network only.</p></details><details class="f" >
+<summary><span class="sev" style="background:#dc6803">MEDIUM</span> nginx directory listing enabled<span class="id">SNT-3E94E3E6</span></summary>
+<p class="meta"><code>config/nginx.conf:9</code> · configuration · CWE-548 · scanner · open</p>
+<p><b>Evidence.</b> <code>autoindex on;</code></p>
+<p><b>Fix.</b> Set &#x27;autoindex off;&#x27;.</p></details><details class="f" >
+<summary><span class="sev" style="background:#dc6803">MEDIUM</span> SSH password authentication enabled<span class="id">SNT-EF460B3C</span></summary>
+<p class="meta"><code>config/sshd_config:4</code> · configuration · CWE-307 · scanner · open</p>
+<p><b>Evidence.</b> <code>PasswordAuthentication yes</code></p>
+<p><b>Fix.</b> Set &#x27;PasswordAuthentication no&#x27; and use key-based auth or SSO certificates.</p></details><details class="f" >
+<summary><span class="sev" style="background:#dc6803">MEDIUM</span> SSH brute-force activity from 203.0.113.45<span class="id">SNT-73537696</span></summary>
+<p class="meta"><code>logs/auth.log</code> · logs · CWE-307 · scanner · open</p>
+<p><b>Evidence.</b> <code>40 failed SSH logins from 203.0.113.45 targeting 6 account(s): admin, deploy, oracle, root, test, ubuntu</code></p>
+<p><b>Fix.</b> Block the source at the firewall, deploy fail2ban or equivalent rate limiting, and disable SSH password authentication.</p></details><details class="f" >
+<summary><span class="sev" style="background:#1570ef">LOW</span> Unpinned base image<span class="id">SNT-5D02EED6</span></summary>
+<p class="meta"><code>app/Dockerfile:1</code> · configuration · CWE-1357 · scanner · open</p>
+<p><b>Evidence.</b> <code>FROM python:latest</code></p>
+<p><b>Fix.</b> Pin base images to a specific version tag or digest for reproducible, auditable builds.</p></details><details class="f" >
+<summary><span class="sev" style="background:#1570ef">LOW</span> HSTS header missing<span class="id">SNT-8B1C5883</span></summary>
+<p class="meta"><code>config/nginx.conf</code> · configuration · CWE-319 · scanner · open</p>
+<p><b>Evidence.</b> <code>TLS server block without Strict-Transport-Security.</code></p>
+<p><b>Fix.</b> add_header Strict-Transport-Security &quot;max-age=31536000; includeSubDomains&quot; always;</p></details><details class="f" >
+<summary><span class="sev" style="background:#1570ef">LOW</span> nginx discloses version (server_tokens on)<span class="id">SNT-6CB40029</span></summary>
+<p class="meta"><code>config/nginx.conf:2</code> · configuration · CWE-200 · scanner · open</p>
+<p><b>Evidence.</b> <code>server_tokens on;</code></p>
+<p><b>Fix.</b> Set &#x27;server_tokens off;&#x27;.</p></details><details class="f" >
+<summary><span class="sev" style="background:#1570ef">LOW</span> SSH X11 forwarding enabled<span class="id">SNT-84B3412D</span></summary>
+<p class="meta"><code>config/sshd_config:6</code> · configuration · CWE-16 · scanner · open</p>
+<p><b>Evidence.</b> <code>X11Forwarding yes</code></p>
+<p><b>Fix.</b> Set &#x27;X11Forwarding no&#x27; unless explicitly required.</p></details><details class="f" >
+<summary><span class="sev" style="background:#1570ef">LOW</span> Path traversal probe from 198.51.100.23<span class="id">SNT-688185EE</span></summary>
+<p class="meta"><code>logs/access.log:4</code> · logs · CWE-22 · scanner · open</p>
+<p><b>Evidence.</b> <code>1 request(s), 0 with 2xx status. Example: /files/../../etc/passwd -&gt; 404</code></p>
+<p><b>Fix.</b> Verify the endpoint is not vulnerable (2xx responses to attack payloads warrant urgent review), apply WAF rules, and block or rate-limit the source.</p></details><details class="f" >
+<summary><span class="sev" style="background:#1570ef">LOW</span> Sensitive file probe from 198.51.100.23<span class="id">SNT-2139A8E4</span></summary>
+<p class="meta"><code>logs/access.log:4</code> · logs · CWE-538 · scanner · open</p>
+<p><b>Evidence.</b> <code>1 request(s), 0 with 2xx status. Example: /files/../../etc/passwd -&gt; 404</code></p>
+<p><b>Fix.</b> Verify the endpoint is not vulnerable (2xx responses to attack payloads warrant urgent review), apply WAF rules, and block or rate-limit the source.</p></details><details class="f" >
+<summary><span class="sev" style="background:#1570ef">LOW</span> Sensitive file probe from 198.51.100.99<span class="id">SNT-FA1AB991</span></summary>
+<p class="meta"><code>logs/access.log:5</code> · logs · CWE-538 · scanner · open</p>
+<p><b>Evidence.</b> <code>2 request(s), 0 with 2xx status. Example: /.env -&gt; 404</code></p>
+<p><b>Fix.</b> Verify the endpoint is not vulnerable (2xx responses to attack payloads warrant urgent review), apply WAF rules, and block or rate-limit the source.</p></details>
+
+<footer>Generated by Sentinel 0.1.0 · mode: offline · AI turns: 0 · est. AI cost $0.00. Secrets are redacted. Full action log in the audit trail.</footer>
+</main></body></html>
