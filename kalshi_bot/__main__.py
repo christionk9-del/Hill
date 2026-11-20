@@ -152,6 +152,11 @@ def cmd_backtest(a):
     backtest.run(a.data_dir)
 
 
+def cmd_pnl(a):
+    from . import pnl
+    pnl.run(stake=a.stake)
+
+
 def main():
     p = argparse.ArgumentParser(prog="kalshi_bot")
     sp = p.add_subparsers(dest="cmd", required=True)
@@ -179,6 +184,8 @@ def main():
     bt = sp.add_parser("backtest", help="backtest on the public Hugging Face Kalshi dataset")
     bt.add_argument("--download", action="store_true"); bt.add_argument("--data-dir", default="data/hf")
     bt.set_defaults(f=cmd_backtest)
+    pl = sp.add_parser("pnl", help="P&L replay of the $5/day plan on real trades")
+    pl.add_argument("--stake", type=float, default=5.0); pl.set_defaults(f=cmd_pnl)
     a = p.parse_args()
     a.f(a)
 
