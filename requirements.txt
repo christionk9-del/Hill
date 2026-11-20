@@ -1,2 +1,3 @@
 requests>=2.31
 cryptography>=42
+duckdb>=1.1   # backtest only

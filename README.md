@@ -19,6 +19,29 @@ Cheap contracts are often *overpriced* (the favorite-longshot bias), and fee
 rounding can cost 25–33% on a single 3c contract. The bot therefore treats
 "is there an edge?" as an empirical question and refuses to bet when the answer is no.
 
+## Backtest results (public data, Sep 2025 – Jan 2026)
+
+`python -m kalshi_bot backtest --download` pulls the free
+[TrevorJS/kalshi-trades](https://huggingface.co/datasets/TrevorJS/kalshi-trades) dataset
+(154M trades, CC-BY-4.0), runs everything below, and writes the bot's `data/calibration.json`.
+
+**Real Kalshi combos, YES buyers, $ back per $1 after fees** (4.8M trades):
+
+| Legs | Before Dec 15 | After Dec 15 |
+|---|---|---|
+| 2 | 0.85 | 0.95 |
+| 3–4 | 0.73 | 0.93 |
+| 5–7 | 0.64 | 0.94 |
+| 8–11 | 0.44 | 0.78 |
+| 12+ | 0.30 | 0.63 |
+
+- Sports single legs at pre-game prices returned 0.84–0.97 per $1 at every price.
+- The only leg types that were +EV before Oct 2025 *and* after: BTC daily price
+  (`KXBTCD`, 76–85c, 1.10) and some city daily-high temperatures (`KXHIGHDEN` 1.06,
+  `KXHIGHPHIL` 1.03, `KXHIGHCHI` 1.03). These are small samples and not sports.
+- The NO side of combos (being the house) returned about 1.01–1.03 for market makers,
+  and about 0.99 for takers in the later period.
+
 ## Combo (parlay) system — the main strategy
 
 A combo multiplies its legs, so a small edge per leg becomes a big edge on the

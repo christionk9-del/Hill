@@ -145,6 +145,13 @@ def cmd_combo_settle(a):
         print(mode, led.combo_stats(mode))
 
 
+def cmd_backtest(a):
+    from . import backtest
+    if a.download:
+        backtest.download(a.data_dir)
+    backtest.run(a.data_dir)
+
+
 def main():
     p = argparse.ArgumentParser(prog="kalshi_bot")
     sp = p.add_subparsers(dest="cmd", required=True)
@@ -169,6 +176,9 @@ def main():
     ct.add_argument("--max-attempts", type=int, default=3)
     ct.set_defaults(f=cmd_combo_trade)
     sp.add_parser("combo-settle").set_defaults(f=cmd_combo_settle)
+    bt = sp.add_parser("backtest", help="backtest on the public Hugging Face Kalshi dataset")
+    bt.add_argument("--download", action="store_true"); bt.add_argument("--data-dir", default="data/hf")
+    bt.set_defaults(f=cmd_backtest)
     a = p.parse_args()
     a.f(a)
 
