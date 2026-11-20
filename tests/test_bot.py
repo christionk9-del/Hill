@@ -94,3 +94,12 @@ def test_diversifying_kills_10x():
     one = simulate_week(5, 0.05, 1, trials=20000)
     many = simulate_week(5, 0.05, 35, trials=2000)
     assert many["p_reach_target"] < one["p_reach_target"] <= one["markov_upper_bound"] + 0.01
+
+
+def test_combo_math():
+    from kalshi_bot import combo
+    lp = combo.per_leg_price(9.86, 1562.5, 16)
+    assert 0.72 < lp < 0.74
+    assert abs(combo.uniform_edge_ev(16, lp, 0.0) - 1.0) < 1e-9
+    assert combo.uniform_edge_ev(16, lp, -0.03) < 0.55   # small per-leg vig halves EV
+    assert combo.uniform_edge_ev(16, lp, 0.03) > 1.8     # small per-leg edge nearly doubles it

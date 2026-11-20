@@ -82,6 +82,22 @@ def cmd_simulate(a):
     print(json.dumps(r, indent=2))
 
 
+def cmd_combo(a):
+    from . import combo
+    legs, mult = a.legs, a.payout / a.cost
+    lp = combo.per_leg_price(a.cost, a.payout, legs)
+    print(f"Implied combo prob {combo.implied_prob(a.cost, a.payout):.3%} (1 in {mult:.0f}); "
+          f"avg leg price {lp:.1%}")
+    print("EV per $1 if every leg's true prob differs from its price by:")
+    for e in (-0.05, -0.03, -0.01, 0.0, 0.01, 0.03):
+        print(f"  {e*100:+.0f} pts/leg -> ${combo.uniform_edge_ev(legs, lp, e):.2f}")
+    true_p = (lp + a.edge) ** legs
+    print(f"\n${a.stake}/combo x {a.per_week}/week at {a.edge*100:+.0f} pts/leg edge:")
+    r = combo.weekly_plan(a.stake, mult, true_p, a.per_week)
+    for k, v in r.items():
+        print(f"  {k:30} {v:,.3f}" if isinstance(v, float) else f"  {k:30} {v}")
+
+
 def main():
     p = argparse.ArgumentParser(prog="kalshi_bot")
     sp = p.add_subparsers(dest="cmd", required=True)
@@ -93,6 +109,12 @@ def main():
     s = sp.add_parser("simulate", help="odds of hitting 10x in a week")
     s.add_argument("--price", type=int, default=5); s.add_argument("--win-prob", type=float, default=0.045)
     s.add_argument("--bets", type=int, default=35); s.set_defaults(f=cmd_simulate)
+    cb = sp.add_parser("combo", help="evaluate a parlay/combo and a weekly combo plan")
+    cb.add_argument("--cost", type=float, default=9.86); cb.add_argument("--payout", type=float, default=1562.50)
+    cb.add_argument("--legs", type=int, default=16); cb.add_argument("--edge", type=float, default=-0.02,
+                    help="assumed true-minus-price per leg, e.g. -0.02")
+    cb.add_argument("--stake", type=float, default=5.0); cb.add_argument("--per-week", type=int, default=7)
+    cb.set_defaults(f=cmd_combo)
     a = p.parse_args()
     a.f(a)
 
