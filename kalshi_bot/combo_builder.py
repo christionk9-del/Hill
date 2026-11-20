@@ -80,7 +80,9 @@ def ev_multiple(model_prob, price, fee_rate=CONFIG.combo_fee_rate):
     return model_prob / cost_per_contract(price, fee_rate)
 
 
-def leg_pool(collection, events_by_ticker, table, cfg=CONFIG, now=None):
+def leg_pool(collection, events_by_ticker, table, cfg=CONFIG, now=None, prob_lookup=None):
+    """prob_lookup: optional {(market_ticker, side): fair prob} from ev_finder (sharp lines).
+    When given it replaces the historical calibration table."""
     now = now or datetime.now(timezone.utc)
     pool = []
     for ae in collection.get("associated_events", []):
@@ -100,7 +102,10 @@ def leg_pool(collection, events_by_ticker, table, cfg=CONFIG, now=None):
             for side, px in sides:
                 if not px or not (cfg.combo_leg_min_price_c <= px <= cfg.combo_leg_max_price_c):
                     continue
-                p = estimate_prob(table, ev.get("category", "unknown"), px, cfg, ev.get("series_ticker"))
+                if prob_lookup is not None:
+                    p = prob_lookup.get((m["ticker"], side))
+                else:
+                    p = estimate_prob(table, ev.get("category", "unknown"), px, cfg, ev.get("series_ticker"))
                 if p is None:
                     continue
                 leg = Leg(et, m["ticker"], side, px, p, game_key(et), m.get("title", ""))
@@ -125,11 +130,13 @@ def build_combo(collection, pool, cfg=CONFIG):
     return ComboPlan(collection.get("collection_ticker", ""), chosen)
 
 
-def plan_combos(client, table, cfg=CONFIG):
+def plan_combos(client, table, cfg=CONFIG, prob_lookup_fn=None):
+    """prob_lookup_fn(list_of_events) -> {(ticker, side): prob}; None = use calibration."""
     events = {e["event_ticker"]: e for e in client.events(status="open")}
+    lookup = prob_lookup_fn(list(events.values())) if prob_lookup_fn else None
     plans = []
     for coll in client.collections():
-        plan = build_combo(coll, leg_pool(coll, events, table, cfg), cfg)
+        plan = build_combo(coll, leg_pool(coll, events, table, cfg, prob_lookup=lookup), cfg)
         if plan:
             plans.append(plan)
     return sorted(plans, key=lambda p: p.model_prob / p.fair_price, reverse=True)

@@ -98,13 +98,51 @@ def cmd_combo(a):
         print(f"  {k:30} {v:,.3f}" if isinstance(v, float) else f"  {k:30} {v}")
 
 
+def _sharp_lookup_fn():
+    from . import ev_finder
+    def fn(events):
+        lines = []
+        for sport in ev_finder.sports_in(events):
+            lines += ev_finder.fetch_sharp(sport)
+        return ev_finder.sharp_prob_lookup(events, lines)
+    return fn
+
+
+def cmd_ev_scan(a):
+    from . import ev_finder
+    from .client import KalshiClient
+    from .ledger import Ledger
+    events = list(KalshiClient().events(status="open"))
+    lines = []
+    for sport in ev_finder.sports_in(events):
+        lines += ev_finder.fetch_sharp(sport)
+    legs = ev_finder.find_ev_legs(events, lines, min_edge=a.min_edge)
+    led = Ledger()
+    print(f"{len(lines)} sharp lines, {len(legs)} +EV Kalshi legs (edge >= {a.min_edge:.0%} after fee)")
+    for l in legs[:30]:
+        led.log_ev(l)
+        print(f"{l.side.upper():3} {l.market_ticker:45} ask {l.price_c:>2}c  fair {l.fair:6.1%}  edge {l.edge:+.1%}")
+
+
+def cmd_ev_settle(a):
+    from .client import KalshiClient
+    from .ledger import Ledger
+    led, client = Ledger(), KalshiClient()
+    for t in led.open_ev():
+        res = client.market(t).get("result")
+        if res in ("yes", "no"):
+            led.settle_ev(t, res)
+    print(led.ev_report())
+
+
 def cmd_combo_scan(a):
     from .client import KalshiClient
     from .combo_builder import plan_combos
     table = calibration.load()
-    if not table:
+    if not table and a.source != "sharp":
         sys.exit("No calibration table. Run `python -m kalshi_bot calibrate` first.")
-    plans = plan_combos(KalshiClient(), table)
+    fn = _sharp_lookup_fn() if a.source == "sharp" else None
+    plans = plan_combos(KalshiClient(), table or {}, prob_lookup_fn=fn)
     if not plans:
         print("No combo has enough underpriced legs right now.")
     for p in plans[:a.top]:
@@ -119,10 +157,11 @@ def cmd_combo_trade(a):
     if mode != "paper" and not CONFIG.key_id:
         sys.exit(f"{mode} mode needs KALSHI_KEY_ID and KALSHI_PRIVATE_KEY_PATH.")
     table = calibration.load()
-    if not table:
+    if not table and a.source != "sharp":
         sys.exit("No calibration table. Run `python -m kalshi_bot calibrate` first.")
     client, led = KalshiClient(), Ledger()
-    for plan in plan_combos(client, table)[:a.max_attempts]:
+    fn = _sharp_lookup_fn() if a.source == "sharp" else None
+    for plan in plan_combos(client, table or {}, prob_lookup_fn=fn)[:a.max_attempts]:
         if execute(plan, client, led, mode):
             break
 
@@ -174,11 +213,16 @@ def main():
                     help="assumed true-minus-price per leg, e.g. -0.02")
     cb.add_argument("--stake", type=float, default=5.0); cb.add_argument("--per-week", type=int, default=7)
     cb.set_defaults(f=cmd_combo)
-    cs = sp.add_parser("combo-scan"); cs.add_argument("--top", type=int, default=3); cs.set_defaults(f=cmd_combo_scan)
+    cs = sp.add_parser("combo-scan"); cs.add_argument("--top", type=int, default=3)
+    cs.add_argument("--source", choices=["calibration", "sharp"], default="sharp"); cs.set_defaults(f=cmd_combo_scan)
     ct = sp.add_parser("combo-trade")
     ct.add_argument("--live", action="store_true")
     ct.add_argument("--quote-only", action="store_true", help="request real quotes, never accept")
     ct.add_argument("--max-attempts", type=int, default=3)
+    ct.add_argument("--source", choices=["calibration", "sharp"], default="sharp")
+    ev = sp.add_parser("ev-scan", help="+EV Kalshi legs vs devigged sharp lines (logs them)")
+    ev.add_argument("--min-edge", type=float, default=0.02); ev.set_defaults(f=cmd_ev_scan)
+    sp.add_parser("ev-settle", help="settle logged +EV legs and report if they really won").set_defaults(f=cmd_ev_settle)
     ct.set_defaults(f=cmd_combo_trade)
     sp.add_parser("combo-settle").set_defaults(f=cmd_combo_settle)
     bt = sp.add_parser("backtest", help="backtest on the public Hugging Face Kalshi dataset")

@@ -18,6 +18,11 @@ CREATE TABLE IF NOT EXISTS orders (
   est_win_prob REAL, edge_c REAL,
   result TEXT, payout_c INTEGER
 );
+CREATE TABLE IF NOT EXISTS ev_log (
+  id INTEGER PRIMARY KEY, ts TEXT, market_ticker TEXT, side TEXT,
+  price_c INTEGER, fair REAL, edge REAL, result TEXT,
+  UNIQUE(market_ticker, side)
+);
 CREATE TABLE IF NOT EXISTS combos (
   id INTEGER PRIMARY KEY,
   ts TEXT NOT NULL,
@@ -103,6 +108,31 @@ class Ledger:
             "FROM combos WHERE mode=? AND result IS NOT NULL", (mode,)).fetchone()
         return {"settled_combos": n, "hits": wins, "cost_$": cost / 100, "payout_$": payout / 100,
                 "profit_$": (payout - cost) / 100, "model_expected_profit_$": exp / 100}
+
+    def log_ev(self, leg, now=None):
+        """First sighting of each +EV leg is kept (that's the price you could have bet)."""
+        now = now or datetime.now(self.tz)
+        self.db.execute("INSERT OR IGNORE INTO ev_log (ts,market_ticker,side,price_c,fair,edge) VALUES (?,?,?,?,?,?)",
+                        (now.isoformat(), leg.market_ticker, leg.side, leg.price_c, leg.fair, leg.edge))
+        self.db.commit()
+
+    def open_ev(self):
+        return [r[0] for r in self.db.execute("SELECT DISTINCT market_ticker FROM ev_log WHERE result IS NULL")]
+
+    def settle_ev(self, ticker, result):
+        self.db.execute("UPDATE ev_log SET result=? WHERE market_ticker=? AND result IS NULL", (result, ticker))
+        self.db.commit()
+
+    def ev_report(self):
+        """Did flagged legs actually win more than they cost? $1 flat per leg."""
+        rows = self.db.execute("SELECT price_c, fair, side=result FROM ev_log WHERE result IN ('yes','no')").fetchall()
+        if not rows:
+            return {"settled_legs": 0}
+        cost = sum(p / 100 * (1 + 0.07 * (1 - p / 100)) for p, _, _ in rows)
+        won = sum(w for _, _, w in rows)
+        return {"settled_legs": len(rows), "wins": won, "expected_wins": round(sum(f for _, f, _ in rows), 1),
+                "return_per_$": round(won / cost, 3),
+                "avg_edge_claimed": round(sum(f - p / 100 for p, f, _ in rows) / len(rows), 4)}
 
     def settle(self, ticker, result):
         rows = self.db.execute("SELECT id, side, count FROM orders WHERE ticker=? AND result IS NULL",

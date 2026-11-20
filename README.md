@@ -49,6 +49,23 @@ the +EV ones in hindsight always looks good; picked in advance, there's no relia
 The dataset floors sub-cent prices (1c recorded = ~1.6c real), so cheap combos look
 cheaper than they were; the report corrects for this.
 
+## +EV finder (sharp lines) — the edge source
+
+Kalshi's own price history showed no edge, so the bot's fair odds come from a sharp
+book instead: Pinnacle via [The Odds API](https://the-odds-api.com) (`export ODDS_API_KEY=...`;
+about 3 credits per sport per scan), devigged with the power method, matched to Kalshi
+game-winner, spread and total markets by ticker date, teams and exact line.
+
+```bash
+python -m kalshi_bot ev-scan --min-edge 0.02   # list + log +EV legs (edge after Kalshi fee)
+python -m kalshi_bot ev-settle                 # did logged legs really win more than they cost?
+python -m kalshi_bot combo-scan                # combos built only from sharp +EV legs (default --source sharp)
+python -m kalshi_bot combo-trade --quote-only  # real RFQ quotes vs sharp fair value
+```
+
+Run `ev-scan` a few times a day for 2–4 weeks before trusting it. `ev-settle` tells you
+whether the flagged legs beat their cost. Player props are not matched (sharp books post few).
+
 ## Combo (parlay) system — the main strategy
 
 A combo multiplies its legs, so a small edge per leg becomes a big edge on the
