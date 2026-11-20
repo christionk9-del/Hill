@@ -42,6 +42,13 @@ rounding can cost 25–33% on a single 3c contract. The bot therefore treats
 - The NO side of combos (being the house) returned about 1.01–1.03 for market makers,
   and about 0.99 for takers in the later period.
 
+**"Only bet the +EV ones"** (`python -m kalshi_bot pnl --ev-only`): combo types picked
+because they were +EV before Dec 15 returned about $1.15 per $1 afterwards, but only in
+3–5c combos, and **removing the single best day (Jan 25 upsets) drops it to $1.00**. Picking
+the +EV ones in hindsight always looks good; picked in advance, there's no reliable edge.
+The dataset floors sub-cent prices (1c recorded = ~1.6c real), so cheap combos look
+cheaper than they were; the report corrects for this.
+
 ## Combo (parlay) system — the main strategy
 
 A combo multiplies its legs, so a small edge per leg becomes a big edge on the
