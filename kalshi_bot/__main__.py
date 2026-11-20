@@ -196,6 +196,11 @@ def cmd_pnl(a):
     pnl.ev_filter_report() if a.ev_only else pnl.run(stake=a.stake)
 
 
+def cmd_updown_backtest(a):
+    from . import updown
+    updown.run_backtest(a.series, a.product)
+
+
 def main():
     p = argparse.ArgumentParser(prog="kalshi_bot")
     sp = p.add_subparsers(dest="cmd", required=True)
@@ -229,6 +234,9 @@ def main():
     bt.add_argument("--download", action="store_true"); bt.add_argument("--data-dir", default="data/hf")
     bt.set_defaults(f=cmd_backtest)
     pl = sp.add_parser("pnl", help="P&L replay of the $5/day plan on real trades")
+    ub = sp.add_parser("updown-backtest", help="binary-option model vs real Kalshi up/down trades")
+    ub.add_argument("--series", default="KXBTC15M"); ub.add_argument("--product", default="BTC-USD")
+    ub.set_defaults(f=cmd_updown_backtest)
     pl.add_argument("--stake", type=float, default=5.0); pl.add_argument("--ev-only", action="store_true"); pl.set_defaults(f=cmd_pnl)
     a = p.parse_args()
     a.f(a)

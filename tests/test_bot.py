@@ -103,3 +103,11 @@ def test_combo_math():
     assert abs(combo.uniform_edge_ev(16, lp, 0.0) - 1.0) < 1e-9
     assert combo.uniform_edge_ev(16, lp, -0.03) < 0.55   # small per-leg vig halves EV
     assert combo.uniform_edge_ev(16, lp, 0.03) > 1.8     # small per-leg edge nearly doubles it
+
+
+def test_updown_fair_value():
+    from kalshi_bot.updown import fair_up
+    assert abs(fair_up(100, 100, 10, 0.001) - 0.5) < 1e-9          # at the strike: coin flip
+    assert fair_up(100.5, 100, 10, 0.001) > 0.9                     # 0.5% above, low vol
+    assert fair_up(100.5, 100, 10, 0.01) < 0.6                      # same gap, high vol
+    assert fair_up(99, 100, 0, 0.001) == 0.0
