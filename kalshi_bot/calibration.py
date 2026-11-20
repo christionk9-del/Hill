@@ -14,7 +14,8 @@ from datetime import datetime
 from .client import cents
 from .config import CONFIG
 
-BUCKETS = [(1, 2), (3, 5), (6, 10), (11, 15), (16, 25)]
+BUCKETS = [(1, 2), (3, 5), (6, 10), (11, 15), (16, 25), (26, 35), (36, 45), (46, 55),
+           (56, 65), (66, 75), (76, 85), (86, 90), (91, 95), (96, 99)]
 
 
 def bucket_of(price_c):
@@ -59,8 +60,8 @@ def collect(client, max_events=3000, cfg=CONFIG, log=print):
             if not snap:
                 continue
             ya, na = snap
-            obs.append({"cat": cat, "side": "yes", "price": ya, "won": result == "yes"})
-            obs.append({"cat": cat, "side": "no", "price": na, "won": result == "no"})
+            obs.append({"cat": cat, "series": series, "side": "yes", "price": ya, "won": result == "yes"})
+            obs.append({"cat": cat, "series": series, "side": "no", "price": na, "won": result == "no"})
         if i % 100 == 0:
             log(f"{i} events, {len(obs)} observations")
     return obs
@@ -83,7 +84,8 @@ def summarize(obs):
         b = bucket_of(o["price"])
         if not b:
             continue
-        for cat in (o["cat"], "ALL"):
+        groups = [o["cat"], "ALL"] + ([f"S:{o['series']}"] if o.get("series") else [])
+        for cat in groups:
             s = agg[f"{cat}|{b}"]
             s["n"] += 1
             s["wins"] += int(o["won"])

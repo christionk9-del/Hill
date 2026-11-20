@@ -19,7 +19,38 @@ Cheap contracts are often *overpriced* (the favorite-longshot bias), and fee
 rounding can cost 25–33% on a single 3c contract. The bot therefore treats
 "is there an edge?" as an empirical question and refuses to bet when the answer is no.
 
-## Workflow
+## Combo (parlay) system — the main strategy
+
+A combo multiplies its legs, so a small edge per leg becomes a big edge on the
+ticket, and a small markup per leg becomes a big loss. The engine:
+
+1. **Calibrates every leg type** (by series, category and price bucket, 1–99c) from settled markets.
+2. **Builds combos only from underpriced legs**: estimated win rate ≥ price + 1 point
+   (shrunk toward the market price), legs priced 40–92c, **max 1 leg per game** so
+   multiplying probabilities is honest. Same-game legs move together.
+3. **Requests a real quote (RFQ)** and accepts only if model EV ≥ 1.15× the quoted
+   price after fees; otherwise it cancels the request.
+4. **Sizes to the shared budget**: $5 a combo, at most $5 a day and $35 a week.
+
+```bash
+python -m kalshi_bot calibrate                 # once a week or so
+python -m kalshi_bot combo-scan                # what it would build right now
+python -m kalshi_bot combo-trade               # paper: quote simulated as fair x 1.20
+python -m kalshi_bot combo-trade --quote-only  # real quotes from market makers, never accepts
+python -m kalshi_bot combo-settle              # settle + P&L vs model
+python -m kalshi_bot combo-trade --live        # only after paper results justify it
+python -m kalshi_bot combo --cost 9.86 --payout 1562.50 --legs 16   # evaluate any ticket
+```
+
+Run `--quote-only` for a week or two. It records how much market makers mark up
+combos versus the leg prices, which is the number that decides whether this can win.
+Test the live flow on the demo exchange first:
+`KALSHI_BASE_URL=https://demo-api.kalshi.co/trade-api/v2`.
+
+The combo/RFQ endpoints in `client.py` follow Kalshi's published docs but were not
+exercised against the real API from the build environment. Verify field names there.
+
+## Workflow (single tail bets)
 
 ```bash
 pip install -r requirements.txt

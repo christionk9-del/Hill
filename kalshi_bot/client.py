@@ -23,6 +23,18 @@ def cents(obj: dict, key: str):
     return None
 
 
+def dollars(obj: dict, key: str):
+    """Price in dollars as float. Combos trade at sub-cent prices, so prefer
+    `<key>_dollars` ("0.0063"); fall back to integer-cent `<key>`."""
+    v = obj.get(f"{key}_dollars")
+    if v is not None:
+        return float(v)
+    v = obj.get(key)
+    if v is not None:
+        return float(v) / 100.0
+    return None
+
+
 class KalshiClient:
     def __init__(self, cfg=CONFIG, session=None):
         self.cfg = cfg
@@ -81,6 +93,37 @@ class KalshiClient:
         path = f"/series/{series_ticker}/markets/{ticker}/candlesticks"
         p = {"start_ts": int(start_ts), "end_ts": int(end_ts), "period_interval": period_minutes}
         return self._req("GET", path, params=p).get("candlesticks", [])
+
+    def market(self, ticker):
+        return self._req("GET", f"/markets/{ticker}")["market"]
+
+    # ---------- combos (multivariate event collections + RFQ) ----------
+    # VERIFY against https://docs.kalshi.com before going live; confirm on the demo
+    # environment (KALSHI_BASE_URL=https://demo-api.kalshi.co/trade-api/v2) first.
+    def collections(self, status="open", **extra):
+        p = {"status": status, "limit": 200, **extra}
+        return self._paginate("/multivariate_event_collections", "multivariate_contracts", p)
+
+    def create_combo_market(self, collection_ticker, legs):
+        """legs: [{"event_ticker", "market_ticker", "side"}] -> combo market_ticker."""
+        body = {"selected_markets": legs}
+        r = self._req("POST", f"/multivariate_event_collections/{collection_ticker}", json=body)
+        return r.get("market_ticker") or r.get("market", {}).get("ticker")
+
+    def create_rfq(self, market_ticker, contracts):
+        body = {"market_ticker": market_ticker, "contracts": int(contracts), "rest_remainder": False}
+        r = self._req("POST", "/communications/rfqs", json=body)
+        return r.get("id") or r.get("rfq_id")
+
+    def rfq_quotes(self, rfq_id):
+        return self._req("GET", "/communications/quotes", params={"rfq_id": rfq_id}).get("quotes", [])
+
+    def accept_quote(self, rfq_id, quote_id, side="yes"):
+        return self._req("PUT", f"/communications/rfqs/{rfq_id}/quotes/{quote_id}/accept",
+                         json={"accepted_side": side})
+
+    def cancel_rfq(self, rfq_id):
+        return self._req("DELETE", f"/communications/rfqs/{rfq_id}")
 
     # ---------- portfolio (auth) ----------
     def balance_cents(self) -> int:

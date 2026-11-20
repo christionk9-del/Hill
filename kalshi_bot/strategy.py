@@ -29,13 +29,14 @@ class Candidate:
         return round(self.breakeven * 100 * self.count)
 
 
-def estimate_prob(table, category, price_c, cfg=CONFIG):
-    """Shrink empirical win rate toward the market price. Uses the
-    category bucket if well sampled, else the ALL bucket, else None."""
+def estimate_prob(table, category, price_c, cfg=CONFIG, series=None):
+    """Shrink empirical win rate toward the market price. Uses the most
+    specific well-sampled bucket: series, then category, then ALL."""
     b = bucket_of(price_c)
     if not b:
         return None
-    for key in (f"{category}|{b}", f"ALL|{b}"):
+    keys = ([f"S:{series}|{b}"] if series else []) + [f"{category}|{b}", f"ALL|{b}"]
+    for key in keys:
         s = table.get(key)
         if s and s["n"] >= cfg.min_bucket_samples:
             k = cfg.prior_strength

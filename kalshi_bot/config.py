@@ -30,6 +30,19 @@ class Config:
     min_bucket_samples: int = int(_f("KALSHI_MIN_BUCKET_SAMPLES", 300))
     prior_strength: float = _f("KALSHI_PRIOR_STRENGTH", 200)       # shrink toward "market is right"
 
+    # --- Combos ---
+    combo_stake: float = _f("KALSHI_COMBO_STAKE", 5.0)            # $ per combo
+    combo_min_legs: int = int(_f("KALSHI_COMBO_MIN_LEGS", 3))
+    combo_max_legs: int = int(_f("KALSHI_COMBO_MAX_LEGS", 10))
+    combo_max_legs_per_game: int = int(_f("KALSHI_COMBO_LEGS_PER_GAME", 1))  # >1 = correlated legs
+    combo_leg_min_price_c: int = int(_f("KALSHI_LEG_MIN_PRICE", 40))
+    combo_leg_max_price_c: int = int(_f("KALSHI_LEG_MAX_PRICE", 92))
+    combo_leg_min_edge: float = _f("KALSHI_LEG_MIN_EDGE", 0.01)    # est prob - price, per leg
+    combo_min_edge: float = _f("KALSHI_COMBO_MIN_EDGE", 0.15)      # model EV must beat quote by 15%
+    combo_fee_rate: float = _f("KALSHI_COMBO_FEE_RATE", 0.07)
+    combo_paper_vig: float = _f("KALSHI_COMBO_PAPER_VIG", 0.20)    # paper quote = fair price * (1+vig)
+    rfq_wait_seconds: float = _f("KALSHI_RFQ_WAIT", 8)
+
     # --- Calibration snapshot ---
     snapshot_hours_before_close: float = _f("KALSHI_SNAPSHOT_HOURS", 24)
 

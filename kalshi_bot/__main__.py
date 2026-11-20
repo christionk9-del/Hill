@@ -98,6 +98,53 @@ def cmd_combo(a):
         print(f"  {k:30} {v:,.3f}" if isinstance(v, float) else f"  {k:30} {v}")
 
 
+def cmd_combo_scan(a):
+    from .client import KalshiClient
+    from .combo_builder import plan_combos
+    table = calibration.load()
+    if not table:
+        sys.exit("No calibration table. Run `python -m kalshi_bot calibrate` first.")
+    plans = plan_combos(KalshiClient(), table)
+    if not plans:
+        print("No combo has enough underpriced legs right now.")
+    for p in plans[:a.top]:
+        print(json.dumps(p.summary(), indent=2))
+
+
+def cmd_combo_trade(a):
+    from .client import KalshiClient
+    from .combo_builder import execute, plan_combos
+    from .ledger import Ledger
+    mode = "live" if a.live else ("quote-only" if a.quote_only else "paper")
+    if mode != "paper" and not CONFIG.key_id:
+        sys.exit(f"{mode} mode needs KALSHI_KEY_ID and KALSHI_PRIVATE_KEY_PATH.")
+    table = calibration.load()
+    if not table:
+        sys.exit("No calibration table. Run `python -m kalshi_bot calibrate` first.")
+    client, led = KalshiClient(), Ledger()
+    for plan in plan_combos(client, table)[:a.max_attempts]:
+        if execute(plan, client, led, mode):
+            break
+
+
+def cmd_combo_settle(a):
+    from .client import KalshiClient
+    from .combo_builder import settle_paper
+    from .ledger import Ledger
+    client, led = KalshiClient(), Ledger()
+    for cid, mode, ticker, legs in led.open_combos():
+        if ticker:
+            res = client.market(ticker).get("result")
+            res = res if res in ("yes", "no") else None
+        else:
+            res = settle_paper(legs, client.market)
+        if res:
+            led.settle_combo(cid, res)
+            print(f"combo {cid} ({mode}): {res}")
+    for mode in ("paper", "live"):
+        print(mode, led.combo_stats(mode))
+
+
 def main():
     p = argparse.ArgumentParser(prog="kalshi_bot")
     sp = p.add_subparsers(dest="cmd", required=True)
@@ -115,6 +162,13 @@ def main():
                     help="assumed true-minus-price per leg, e.g. -0.02")
     cb.add_argument("--stake", type=float, default=5.0); cb.add_argument("--per-week", type=int, default=7)
     cb.set_defaults(f=cmd_combo)
+    cs = sp.add_parser("combo-scan"); cs.add_argument("--top", type=int, default=3); cs.set_defaults(f=cmd_combo_scan)
+    ct = sp.add_parser("combo-trade")
+    ct.add_argument("--live", action="store_true")
+    ct.add_argument("--quote-only", action="store_true", help="request real quotes, never accept")
+    ct.add_argument("--max-attempts", type=int, default=3)
+    ct.set_defaults(f=cmd_combo_trade)
+    sp.add_parser("combo-settle").set_defaults(f=cmd_combo_settle)
     a = p.parse_args()
     a.f(a)
 
