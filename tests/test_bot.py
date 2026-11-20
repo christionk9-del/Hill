@@ -124,7 +124,7 @@ def test_forward_strategies_and_fee():
     m = {"close_time": close, "floor_strike": 100.0, "yes_ask_dollars": "0.40", "no_ask_dollars": "0.62"}
     got = {(s, side) for s, side, _ in fw.strategies(m, "KXBTC15M", now, F)}
     assert ("model_edge_10", "yes") in got and not any(side == "no" and s.startswith("model") for s, side in got)
-    m2 = dict(m, close_time=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now + 120)),
+    m2 = dict(m, close_time=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now + 150)),
               yes_ask_dollars="0.92", no_ask_dollars="0.09")
     got2 = {(s, side) for s, side, _ in fw.strategies(m2, "KXINX15M", now, F)}
     assert ("late_favorite", "yes") in got2 and ("longshot_10c", "no") in got2
