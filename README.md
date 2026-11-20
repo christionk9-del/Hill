@@ -66,6 +66,25 @@ python -m kalshi_bot combo-trade --quote-only  # real RFQ quotes vs sharp fair v
 Run `ev-scan` a few times a day for 2–4 weeks before trusting it. `ev-settle` tells you
 whether the flagged legs beat their cost. Player props are not matched (sharp books post few).
 
+## Up/Down markets (binary options)
+
+`KXBTC15M`, `KXETH15M` etc. are digital options: fair P(up) = N(ln(S/K) / (sigma*sqrt(tau))).
+`python -m kalshi_bot updown-backtest` re-prices 1.36M real Kalshi BTC 15-min trades
+(Dec 2025 to Jan 2026) with Coinbase prices.
+
+- Kalshi prices are well calibrated; the model alone adds nothing with 1-minute data.
+- Tick-level test (Jan 20, 2026, 51,856 trades), betting when the model's edge is at least 10%:
+
+| BTC price delay | $ back per $1 |
+|---|---|
+| 0 s | 1.19 |
+| 2 s | 1.08 |
+| 5 s | 1.00 |
+| 15 s | 0.88 |
+
+  This is a speed game: the edge exists only if your price feed and orders beat other
+  bots by a few seconds. One day of data, so treat it as a lead, not proof.
+
 ## Combo (parlay) system — the main strategy
 
 A combo multiplies its legs, so a small edge per leg becomes a big edge on the
