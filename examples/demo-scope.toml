@@ -1,0 +1,15 @@
+# Engagement scope: the ONLY targets Sentinel is permitted to assess.
+# Keep a signed authorization (SOW / rules of engagement) on file for every engagement.
+
+[engagement]
+client_name   = "Acme Widgets (demo)"
+engagement_id = "DEMO-2026-001"
+authorized_by = "Jane Doe, CISO (demo)"
+
+[targets]
+paths = ["demo-target"]     # relative to this file
+hosts = []                  # e.g. ["shop.acme.example", "*.api.acme.example"]
+
+[options]
+allow_network_lookups = true   # query OSV.dev for dependency CVEs
+max_file_bytes = 2000000

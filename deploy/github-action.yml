@@ -1,0 +1,25 @@
+# Example: run Sentinel on every pull request and upload findings to GitHub code scanning.
+# Copy to .github/workflows/sentinel.yml in the customer's repository.
+name: sentinel
+on: [pull_request]
+permissions:
+  contents: read
+  security-events: write
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - run: pip install sentinel-security-agent   # or install from your private package index
+      - name: Run assessment
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: sentinel scan --scope sentinel-scope.toml --out reports --fail-on high
+      - if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with: { sarif_file: reports }
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: sentinel-report, path: reports }
