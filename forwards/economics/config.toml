@@ -1,0 +1,18 @@
+title = "Economics forward test"
+db = "data/economics.db"
+dashboard = "data/economics.html"
+strategies_dir = "forwards/economics/strategies"
+mappings = "forwards/mappings.json"
+store_quotes = false
+
+[sources.kalshi]
+categories = ["Economics", "Financials", "Companies"]
+min_volume = 500
+max_pages = 8
+
+[sources.polymarket]
+domains = ["economics"]
+min_liquidity = 2000
+
+[sources.manifold]
+domains = ["economics"]

@@ -16,8 +16,12 @@ python3 -m edgelab match                                 # suggest Kalshi/Polyma
 #   review each pair (same question? same resolution rules & date?) and copy the good ones into mappings.json
 python3 -m edgelab scan --every 900                      # live paper trading every 15 min (+ dashboard.html)
 python3 -m edgelab report                                # verdicts, venue scorecard, devig tournament
-python3 -m unittest discover -s tests -t .               # 16 tests
+python3 -m unittest discover -s tests -t .               # 20 tests
 ```
+
+## Live forward tests
+
+Three separate live forward tests (**geopolitics, economics, sports**) run from `forwards/` every 30 minutes via GitHub Actions. Results go to the `forward-data` branch. Setup, mappings and the tweak-by-versioning workflow are in [`forwards/README.md`](forwards/README.md).
 
 ## The model
 

@@ -194,3 +194,69 @@ class TestEvents(unittest.TestCase):
             pairs = _j.load(open(out))
             self.assertEqual(len(pairs), 1)
             self.assertEqual(pairs[0]["legs"], {"kalshi": "K1", "polymarket": "P9"})
+
+
+class TestForwardMechanics(unittest.TestCase):
+    def _qs(self, now, size):
+        def mk(venue, o, cost):
+            return Quote("x", venue, "geopolitics", "e", "Q?", "binary", o, 1 / cost,
+                         (now + timedelta(days=10)).strftime("%Y-%m-%dT%H:%M:%SZ"), size=size)
+        return [mk("polymarket", "Yes", 0.50), mk("polymarket", "No", 0.52), mk("kalshi", "Yes", 0.44), mk("kalshi", "No", 0.58)]
+
+    def test_depth_and_cash_caps(self):
+        class Src:
+            name, min_interval = "x", 0
+
+            def __init__(s, qs):
+                s.qs = qs
+
+            def fetch(s, now):
+                return s.qs
+
+            def results(s, p, now):
+                return {}
+        now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        strat = {"name": "s", "min_ev": 0.03, "min_sources": 1, "kelly_fraction": 1.0, "max_stake_pct": 0.5,
+                 "bankroll": 1000, "max_depth_frac": 0.5}
+        with tempfile.TemporaryDirectory() as d:
+            L = Ledger(os.path.join(d, "t.db"))
+            Engine(L, [Src(self._qs(now, size=8.0))], [strat], log=lambda *a: None).scan(now)
+            stakes = [r["stake"] for r in L.q("SELECT stake FROM bets")]
+            self.assertTrue(stakes and all(s <= 4.0 for s in stakes), stakes)  # 50% of $8 at the top of book
+            self.assertLessEqual(L.open_exposure("s"), 1000)
+
+    def test_throttle_persists_in_ledger(self):
+        class Src:
+            name, min_interval, calls = "metered", 720, 0
+
+            def fetch(s, now):
+                s.calls += 1
+                return []
+        now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "t.db")
+            src = Src()
+            for h in (0, 1, 13):  # new Engine each time, like separate cron runs
+                Engine(Ledger(path), [src], [], log=lambda *a: None).scan(now + timedelta(hours=h))
+            self.assertEqual(src.calls, 2)
+
+    def test_geopolitics_classifier(self):
+        from edgelab.sources.base import classify_domain as c
+        self.assertEqual(c("Who will succeed Netanyahu as Prime Minister of Israel?"), "geopolitics")
+        self.assertEqual(c("Next Japanese general election winner?"), "geopolitics")
+        self.assertEqual(c("Los Angeles Mayor winner?"), "politics")
+        self.assertEqual(c("Will Elizabeth Warren run?"), "other")
+        self.assertEqual(c("FIFA World Cup winner"), "sports")
+
+    def test_forward_strategies_load_and_hash(self):
+        from edgelab.cli import load_strategies
+        from edgelab.ledger import config_hash
+        names = set()
+        for f in ("geopolitics", "economics", "sports"):
+            ss = load_strategies(f"forwards/{f}/strategies")
+            self.assertEqual(len(ss), 3)
+            self.assertEqual(sum(1 for s in ss if s.get("control")), 1)
+            for s in ss:
+                config_hash(s)
+                names.add(s["name"])
+        self.assertEqual(len(names), 9)

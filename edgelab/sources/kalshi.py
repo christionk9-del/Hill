@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from .base import Quote, Source, http_json, parse_iso
+from .base import Quote, Source, classify_domain, http_json, parse_iso
 
 BASE = "https://api.elections.kalshi.com/trade-api/v2"
 CATEGORY_DOMAIN = {
@@ -21,7 +21,7 @@ def taker_fee(p: float, rate: float = 0.07) -> float:
 class Kalshi(Source):
     name = "kalshi"
 
-    def __init__(self, categories=("Politics", "Elections", "World", "Economics"), max_pages=5,
+    def __init__(self, categories=("Politics", "Elections", "World", "Economics", "Financials", "Companies"), max_pages=5,
                  min_volume=1000, fee_rate=0.07, **_):
         self.categories, self.max_pages = set(categories), max_pages
         self.min_volume, self.fee_rate = min_volume, fee_rate
@@ -37,6 +37,9 @@ class Kalshi(Source):
                 if self.categories and ev.get("category") not in self.categories:
                     continue
                 dom = CATEGORY_DOMAIN.get(ev.get("category"), "other")
+                if dom in ("politics", "geopolitics"):
+                    # Kalshi files most geopolitics (wars, foreign leaders, NATO...) under Politics/Elections
+                    dom = "geopolitics" if classify_domain(ev.get("title", "")) == "geopolitics" else dom
                 for m in ev.get("markets", []):
                     out.extend(self._quotes(ev, m, dom, now))
             cursor = data.get("cursor")
@@ -60,8 +63,14 @@ class Kalshi(Source):
         base = dict(source=self.name, venue="kalshi", domain=dom, event_id=f"ks:{m['ticker']}",
                     event_name=name, market_key="binary", start_time=m.get("close_time", ""),
                     ref={"ticker": m["ticker"]})
-        return [Quote(outcome="Yes", price=1 / (ya + taker_fee(ya, self.fee_rate)), **base),
-                Quote(outcome="No", price=1 / (na + taker_fee(na, self.fee_rate)), **base)]
+        def depth(contracts, px):  # top-of-book $ available
+            try:
+                return float(contracts) * px
+            except (TypeError, ValueError):
+                return None
+        # buying NO = hitting resting YES bids, so NO depth is the YES bid size
+        return [Quote(outcome="Yes", price=1 / (ya + taker_fee(ya, self.fee_rate)), size=depth(m.get("yes_ask_size_fp"), ya), **base),
+                Quote(outcome="No", price=1 / (na + taker_fee(na, self.fee_rate)), size=depth(m.get("yes_bid_size_fp"), na), **base)]
 
     def results(self, pending, now):
         out = {}

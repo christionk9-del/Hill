@@ -115,11 +115,13 @@ class DemoWorld(Source):
                         ya, na = m, 1 - m
                     fee = (lambda p: 0.07 * p * (1 - p)) if v == "demo_exchange_1" else (lambda p: 0.0)
                     prices = [1 / (ya + fee(ya)), 1 / (na + fee(na))]
+                depth_r = _rng(self.seed, e["id"], v, "depth")
+                lo, hi = {"demo_exchange_1": (40, 400), "demo_exchange_2": (500, 5000)}.get(v, (300, 3000))
                 for o, pr in zip(e["outcomes"], prices):
                     out.append(Quote(source=self.name, venue=v, domain=e["domain"], event_id=f"demo:{e['id']}",
                                      event_name=e["name"], market_key="h2h" if e["domain"] == "sports" else "binary",
                                      outcome=o, price=pr, start_time=iso(e["start"]), bettable=(v != "demo_crowd"),
-                                     ref={"id": e["id"]}))
+                                     ref={"id": e["id"]}, size=round(depth_r.uniform(lo, hi), 2)))
         return out
 
     def results(self, pending, now):

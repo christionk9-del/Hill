@@ -1,0 +1,21 @@
+{
+  "name": "sports_control_v1",
+  "control": true,
+  "hypothesis": "NEGATIVE CONTROL for sports: bets rated -3%..0% EV. Must lose to the close.",
+  "domains": [
+    "sports"
+  ],
+  "devig": "power",
+  "exclude_self": true,
+  "min_sources": 1,
+  "min_prob": 0.05,
+  "max_price": 10,
+  "staking": "flat",
+  "kelly_fraction": 0.25,
+  "max_stake_pct": 0.02,
+  "bankroll": 1000,
+  "max_hours_to_start": 48,
+  "flat_stake": 10,
+  "min_ev": -0.03,
+  "max_ev": 0.0
+}

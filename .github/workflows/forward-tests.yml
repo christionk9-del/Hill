@@ -1,0 +1,73 @@
+# Runs the three EdgeLab forward tests (geopolitics, economics, sports) every 30 minutes.
+# Ledgers + dashboards + CSVs live on the `forward-data` branch (replaced each run, so the repo
+# doesn't grow; the SQLite ledger itself is the full history).
+# NOTE: GitHub only runs scheduled workflows from the DEFAULT branch, so this file must be merged
+# to main. Sports needs a repository secret ODDS_API_KEY (free key at the-odds-api.com).
+name: forward-tests
+
+on:
+  schedule:
+    - cron: "7,37 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: forward-tests
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Restore ledgers from forward-data branch
+        run: |
+          mkdir -p data
+          if git ls-remote --exit-code --heads origin forward-data >/dev/null 2>&1; then
+            git fetch --depth=1 origin forward-data
+            git archive FETCH_HEAD | tar -x -C data
+          fi
+
+      - name: Run forward tests
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: |
+          for f in geopolitics economics sports; do
+            echo "::group::$f"
+            python -m edgelab --config forwards/$f/config.toml scan || echo "::warning::$f scan failed"
+            python -m edgelab --config forwards/$f/config.toml export --out data/$f-bets.csv || true
+            python -m edgelab --config forwards/$f/config.toml report || true
+            echo "::endgroup::"
+          done
+
+      - name: Suggest cross-venue mappings (once a day around 06:00 UTC, and on manual runs)
+        run: |
+          H=$(date -u +%H); M=$(date -u +%M)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || { [ "$H" = "06" ] && [ "$M" -lt 30 ]; }; then
+            for f in geopolitics economics; do
+              python -m edgelab --config forwards/$f/config.toml match --out data/$f-mapping-candidates.json || true
+            done
+          fi
+
+      - name: Save ledgers to forward-data branch
+        run: |
+          cd data
+          cat > README.md <<MD
+          # EdgeLab forward-test data (auto-generated)
+          Updated $(date -u +%FT%TZ). Dashboards: geopolitics.html, economics.html, sports.html.
+          Paper bets: *-bets.csv. Mapping suggestions to review: *-mapping-candidates.json.
+          MD
+          git init -q -b forward-data
+          git config user.name "edgelab-bot"
+          git config user.email "edgelab-bot@users.noreply.github.com"
+          git add -A
+          git commit -qm "Forward-test snapshot $(date -u +%FT%TZ)"
+          git push -fq "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" forward-data

@@ -1,0 +1,19 @@
+{
+  "name": "sports_worstcase_v1",
+  "hypothesis": "Conservative arm: worst-case devig across methods and EV >= 3%. Fewer bets, higher share beating the close than sports_power_v1.",
+  "domains": [
+    "sports"
+  ],
+  "devig": "worst_case",
+  "exclude_self": true,
+  "min_sources": 1,
+  "min_prob": 0.05,
+  "max_price": 10,
+  "staking": "kelly",
+  "kelly_fraction": 0.25,
+  "max_stake_pct": 0.02,
+  "bankroll": 1000,
+  "max_hours_to_start": 48,
+  "min_ev": 0.03,
+  "max_ev": 0.25
+}

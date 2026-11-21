@@ -125,7 +125,7 @@ def find_edges(groups: dict[str, list[Quote]], strat: dict, calibrations: dict |
             cand = {"group_id": gid, "outcome": q.outcome, "venue": q.venue, "price": q.price,
                     "q": p, "ev": ev, "kelly": kelly(p, q.price), "n_sources": fr[1],
                     "domain": dom, "event_name": q.event_name, "market_key": q.market_key,
-                    "start_time": q.start_time, "days": round(days, 2), "apr": apr}
+                    "start_time": q.start_time, "days": round(days, 2), "apr": apr, "size": q.size}
             if q.outcome not in best or ev > best[q.outcome]["ev"]:
                 best[q.outcome] = cand
         out.extend(best.values())

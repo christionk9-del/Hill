@@ -1,0 +1,15 @@
+title = "Sports forward test"
+db = "data/sports.db"
+dashboard = "data/sports.html"
+strategies_dir = "forwards/sports/strategies"
+store_quotes = false
+
+# The Odds API free tier = 500 credits/month. Cost per odds call = markets x regions per sport.
+# Budget below: 2 sports x 1 market x 2 regions = 4 credits, twice a day (~240/mo)
+# + scores (2 credits/sport) once a day (~120/mo)  => ~360 credits/month.
+# On a paid plan: add sports/markets and drop min_interval_minutes to 30 for much better CLV.
+[sources.oddsapi]
+sports = ["basketball_nba", "americanfootball_nfl"]
+regions = ["us", "eu"]          # eu = Pinnacle/Betfair (the sharp consensus); us = books you'd bet into
+markets = ["h2h"]
+min_interval_minutes = 720

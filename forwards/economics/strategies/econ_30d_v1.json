@@ -1,0 +1,22 @@
+{
+  "name": "econ_30d_v1",
+  "hypothesis": "Capital-efficiency arm on economics: same model, only contracts resolving within 30 days with >= 25% annualised EV. Expect similar CLV to econ_inclusive_v1 but higher bankroll return per year.",
+  "domains": [
+    "economics"
+  ],
+  "devig": "power",
+  "exclude_self": false,
+  "min_sources": 2,
+  "min_prob": 0.04,
+  "max_price": 20,
+  "staking": "kelly",
+  "kelly_fraction": 0.2,
+  "max_stake_pct": 0.02,
+  "bankroll": 1000,
+  "max_depth_frac": 0.5,
+  "min_ev": 0.02,
+  "max_ev": 0.3,
+  "max_days": 30,
+  "min_apr": 0.25,
+  "max_hours_to_start": 720
+}

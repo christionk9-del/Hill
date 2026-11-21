@@ -1,0 +1,18 @@
+title = "Geopolitics forward test"
+db = "data/geopolitics.db"
+dashboard = "data/geopolitics.html"
+strategies_dir = "forwards/geopolitics/strategies"
+mappings = "forwards/mappings.json"
+store_quotes = false            # ledger is committed every run; raw quotes would bloat it
+
+[sources.kalshi]                # Kalshi files most geopolitics under Politics/Elections; titles are re-classified
+categories = ["Politics", "Elections", "World"]
+min_volume = 500
+max_pages = 8
+
+[sources.polymarket]
+domains = ["geopolitics"]
+min_liquidity = 2000
+
+[sources.manifold]              # play money: signal only
+domains = ["geopolitics"]

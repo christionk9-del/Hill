@@ -158,6 +158,7 @@ function verdictBadge(v){
 }
 
 $("#meta").textContent=`Generated ${D.generated} · ${D.scans.n} scans${D.scans.first?` · ${D.scans.first.slice(0,10)} → ${D.scans.last.slice(0,10)}`:""}`;
+if(D.title){$("h1").innerHTML=`EdgeLab <span>· ${esc(D.title)}</span>`;document.title=`EdgeLab · ${D.title}`;}
 $("#mode").innerHTML=D.mode==="demo"?`<span class="badge demo">DEMO · synthetic market with planted edges</span>`:`<span class="badge">LIVE paper trading</span>`;
 
 // comparison table

@@ -1,0 +1,21 @@
+{
+  "name": "econ_inclusive_v1",
+  "hypothesis": "Baseline EdgeLab model on economics: contracts priced >= 3% below the cross-venue consensus (bet venue included as one signal, power devig, fees included) beat the closing consensus (mean CLV > 0, t > 3) and return positive ROI.",
+  "domains": [
+    "economics"
+  ],
+  "devig": "power",
+  "exclude_self": false,
+  "min_sources": 2,
+  "min_prob": 0.04,
+  "max_price": 20,
+  "staking": "kelly",
+  "kelly_fraction": 0.2,
+  "max_stake_pct": 0.02,
+  "bankroll": 1000,
+  "max_depth_frac": 0.5,
+  "min_ev": 0.03,
+  "max_ev": 0.3,
+  "max_days": 120,
+  "max_hours_to_start": 2880
+}

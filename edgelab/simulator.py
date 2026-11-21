@@ -56,6 +56,8 @@ class Engine:
             self.L.register(s, ts)
         quotes, errors = [], []
         for src in self.sources:
+            if not self._due(src, "fetch", now):
+                continue
             try:
                 quotes += src.fetch(now)
             except Exception as e:
@@ -95,6 +97,8 @@ class Engine:
                 if parse_iso(c["start_time"]) - now > timedelta(hours=s.get("max_hours_to_start", 24 * 30)):
                     continue
                 stake = min(stake_for(c, s, bank), round(cash, 2))
+                if c.get("size") is not None:  # can't fill more than the book shows
+                    stake = min(stake, round(s.get("max_depth_frac", 0.5) * c["size"], 2))
                 if stake >= s.get("min_stake", 1.0) and self.L.add_bet(s["name"], ts, c, stake):
                     cash -= stake
                     n_bets += 1
@@ -104,6 +108,17 @@ class Engine:
         self.L.db.execute("INSERT INTO scans VALUES(?,?,?,?,?)", (ts, len(quotes), len(groups), n_bets, json.dumps(errors)))
         self.L.commit()
         return {"quotes": len(quotes), "groups": len(groups), "new_bets": n_bets, "errors": errors}
+
+    def _due(self, src, kind: str, now: datetime) -> bool:
+        """Throttle metered APIs. State lives in the ledger so it survives between cron runs."""
+        if not src.min_interval:
+            return True
+        key = f"{src.name}:{kind}"
+        row = self.L.q("SELECT ts FROM source_state WHERE key=?", (key,))
+        if row and now - parse_iso(row[0]["ts"]) < timedelta(minutes=src.min_interval):
+            return False
+        self.L.db.execute("INSERT OR REPLACE INTO source_state VALUES(?,?)", (key, iso(now)))
+        return True
 
     # ------------------------------------------------------------ calibration
     def _cal_for(self, strat: dict) -> dict:
@@ -173,7 +188,7 @@ class Engine:
         got: dict = {}
         for src in self.sources:
             items = by_src.get(src.name)
-            if not items:
+            if not items or not self._due(src, "results", now):
                 continue
             try:
                 for k, v in src.results(items, now).items():

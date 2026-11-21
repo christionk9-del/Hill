@@ -1,0 +1,19 @@
+{
+  "name": "sports_power_v1",
+  "hypothesis": "Baseline EdgeLab model on sports: soft-book prices >= 2% above the power-devigged sharp consensus (Pinnacle, Betfair, ...) beat the sharp closing line (mean CLV > 0, t > 3).",
+  "domains": [
+    "sports"
+  ],
+  "devig": "power",
+  "exclude_self": true,
+  "min_sources": 1,
+  "min_prob": 0.05,
+  "max_price": 10,
+  "staking": "kelly",
+  "kelly_fraction": 0.25,
+  "max_stake_pct": 0.02,
+  "bankroll": 1000,
+  "max_hours_to_start": 48,
+  "min_ev": 0.02,
+  "max_ev": 0.25
+}

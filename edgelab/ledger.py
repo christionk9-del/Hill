@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS results(group_id TEXT, outcome TEXT, result REAL, ts 
 CREATE TABLE IF NOT EXISTS calibrations(ts TEXT, domain TEXT, a REAL, b REAL, se_b REAL, n INTEGER);
 CREATE TABLE IF NOT EXISTS opps(ts TEXT, strategy TEXT, data TEXT);
 CREATE TABLE IF NOT EXISTS scans(ts TEXT, n_quotes INTEGER, n_groups INTEGER, n_bets INTEGER, errors TEXT);
+CREATE TABLE IF NOT EXISTS source_state(key TEXT PRIMARY KEY, ts TEXT);
 CREATE INDEX IF NOT EXISTS bets_status ON bets(status);
 """
 

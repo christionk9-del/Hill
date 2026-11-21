@@ -45,7 +45,9 @@ def build_sources(cfg: dict):
     out = []
     for name, sc in cfg.get("sources", {}).items():
         if sc.get("enabled", True) and name in reg:
-            out.append(reg[name](**{k: v for k, v in sc.items() if k != "enabled"}))
+            src = reg[name](**{k: v for k, v in sc.items() if k not in ("enabled", "min_interval_minutes")})
+            src.min_interval = sc.get("min_interval_minutes", 0)
+            out.append(src)
     return out
 
 
@@ -84,22 +86,28 @@ def _engine(cfg, L, sources):
 
 
 def cmd_scan(a, cfg):
+    os.makedirs(os.path.dirname(cfg.get("db", "edgelab.db")) or ".", exist_ok=True)
     L = Ledger(cfg.get("db", "edgelab.db"))
+    a.dashboard = a.dashboard or cfg.get("dashboard", "dashboard.html")
+    a.title = cfg.get("title", "")
     eng = _engine(cfg, L, build_sources(cfg))
     while True:
         r = eng.scan(utcnow())
         print(f"[{utcnow():%H:%M:%S}] quotes={r['quotes']} markets={r['groups']} new paper bets={r['new_bets']}")
         if a.dashboard:
-            _write_dash(L, a.dashboard, "live")
+            _write_dash(L, a.dashboard, "live", a.title)
         if not a.every:
             break
         time.sleep(a.every)
 
 
-def _write_dash(L, out, mode):
+def _write_dash(L, out, mode, title=""):
     from .dashboard import render
+    os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
+    rep = build_report(L, mode)
+    rep["title"] = title
     with open(out, "w") as f:
-        f.write(render(build_report(L, mode)))
+        f.write(render(rep))
     print(f"dashboard -> {out}")
 
 
@@ -154,11 +162,28 @@ def print_report(L):
 
 
 def cmd_report(a, cfg):
+    if cfg.get("title"):
+        print(f"== {cfg['title']} ==")
     print_report(Ledger(cfg.get("db", "edgelab.db")))
 
 
+def cmd_export(a, cfg):
+    """Write every paper bet (with market name, CLV, result) to CSV for spreadsheets / notebooks."""
+    import csv
+    L = Ledger(a.db or cfg.get("db", "edgelab.db"))
+    rows = [dict(r) for r in L.q("""SELECT b.*, m.event_name, m.start_time FROM bets b
+                                    LEFT JOIN markets m ON m.group_id=b.group_id AND m.outcome=b.outcome ORDER BY b.ts""")]
+    os.makedirs(os.path.dirname(a.out) or ".", exist_ok=True)
+    with open(a.out, "w", newline="") as f:
+        if rows:
+            wr = csv.DictWriter(f, fieldnames=list(rows[0]))
+            wr.writeheader()
+            wr.writerows(rows)
+    print(f"{len(rows)} bets -> {a.out}")
+
+
 def cmd_dashboard(a, cfg):
-    _write_dash(Ledger(a.db or cfg.get("db", "edgelab.db")), a.out, a.mode)
+    _write_dash(Ledger(a.db or cfg.get("db", "edgelab.db")), a.out, a.mode, cfg.get("title", ""))
 
 
 def cmd_match(a, cfg):
@@ -225,7 +250,7 @@ def main(argv=None):
 
     s = sub.add_parser("scan", help="live: fetch odds, paper-bet +EV, track CLV, settle")
     s.add_argument("--every", type=int, default=0, help="repeat every N seconds")
-    s.add_argument("--dashboard", default="dashboard.html")
+    s.add_argument("--dashboard", default=None, help="defaults to the config's `dashboard` or dashboard.html")
 
     d = sub.add_parser("demo", help="run a synthetic forward test with planted edges (offline)")
     d.add_argument("--days", type=int, default=45)
@@ -241,6 +266,9 @@ def main(argv=None):
     db.add_argument("--db")
     db.add_argument("--out", default="dashboard.html")
     db.add_argument("--mode", default="live")
+    ex = sub.add_parser("export", help="export paper bets to CSV")
+    ex.add_argument("--db")
+    ex.add_argument("--out", default="bets.csv")
     m = sub.add_parser("match", help="suggest cross-venue market mappings")
     m.add_argument("--threshold", type=float, default=0.6)
     m.add_argument("--out", default="mappings.candidates.json")
@@ -249,4 +277,4 @@ def main(argv=None):
     cfg = load_config(a.config)
     if a.cmd == "ev":
         return cmd_ev(a)
-    return {"scan": cmd_scan, "demo": cmd_demo, "report": cmd_report, "dashboard": cmd_dashboard, "match": cmd_match}[a.cmd](a, cfg)
+    return {"scan": cmd_scan, "demo": cmd_demo, "report": cmd_report, "dashboard": cmd_dashboard, "match": cmd_match, "export": cmd_export}[a.cmd](a, cfg)
