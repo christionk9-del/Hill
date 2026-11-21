@@ -1,0 +1,11 @@
+{
+  "name": "events_short_dated_apr",
+  "hypothesis": "Capital efficiency. Restricting to contracts that resolve within 14 days and clear 50% annualised EV turns bankroll over faster: higher P&L per dollar-day than the long-horizon arms, at the same or better CLV.",
+  "domains": ["politics", "geopolitics", "economics"],
+  "devig": "power",
+  "exclude_self": false,
+  "min_ev": 0.02, "max_ev": 0.30, "min_prob": 0.05, "max_price": 15,
+  "min_sources": 2, "max_days": 14, "min_apr": 0.5,
+  "staking": "kelly", "kelly_fraction": 0.2, "max_stake_pct": 0.02, "bankroll": 1000,
+  "max_hours_to_start": 336
+}

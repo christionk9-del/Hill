@@ -15,10 +15,11 @@ from __future__ import annotations
 
 import math
 from collections import defaultdict
+from datetime import datetime, timezone
 
 from .devig import devig
 from .odds import kelly, logit, sigmoid
-from .sources.base import Quote
+from .sources.base import Quote, parse_iso
 
 DEFAULT_WEIGHTS = {
     # sportsbooks — the sharp end of the market
@@ -82,9 +83,14 @@ def consensus(qs: list[Quote], method: str = "power", weights: dict | None = Non
     return {o: p / s for o, p in q.items()}, n
 
 
-def find_edges(groups: dict[str, list[Quote]], strat: dict, calibrations: dict | None = None) -> list[dict]:
-    """Return the best +EV candidate per (group, outcome) under a strategy config."""
+def find_edges(groups: dict[str, list[Quote]], strat: dict, calibrations: dict | None = None,
+               now: datetime | None = None) -> list[dict]:
+    """Return the best +EV candidate per (group, outcome) under a strategy config.
+
+    Event contracts can lock capital for months, so each candidate also carries
+    `days` to resolution and `apr` = EV annualised over that lock-up."""
     calibrations = calibrations or {}
+    now = now or datetime.now(timezone.utc)
     method = strat.get("devig", "power")
     weights = {**DEFAULT_WEIGHTS, **strat.get("weights", {})}
     domains = set(strat.get("domains", []))
@@ -112,10 +118,14 @@ def find_edges(groups: dict[str, list[Quote]], strat: dict, calibrations: dict |
             ev = p * q.price - 1
             if not (strat.get("min_ev", 0.02) <= ev <= strat.get("max_ev", 0.30)):
                 continue
+            days = max((parse_iso(q.start_time) - now).total_seconds() / 86400, 0.5)
+            apr = ev * 365 / days
+            if days > strat.get("max_days", 1e9) or apr < strat.get("min_apr", -1e9):
+                continue
             cand = {"group_id": gid, "outcome": q.outcome, "venue": q.venue, "price": q.price,
                     "q": p, "ev": ev, "kelly": kelly(p, q.price), "n_sources": fr[1],
                     "domain": dom, "event_name": q.event_name, "market_key": q.market_key,
-                    "start_time": q.start_time}
+                    "start_time": q.start_time, "days": round(days, 2), "apr": apr}
             if q.outcome not in best or ev > best[q.outcome]["ev"]:
                 best[q.outcome] = cand
         out.extend(best.values())

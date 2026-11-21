@@ -8,9 +8,9 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta
 
-from .devig import METHODS
+from .devig import METHODS, devig
 from .ledger import Ledger
-from .model import DEFAULT_WEIGHTS, consensus, find_edges, fit_calibration, group_quotes, stake_for
+from .model import DEFAULT_WEIGHTS, consensus, find_edges, fit_calibration, group_quotes, stake_for, venue_books
 from .sources.base import Quote, Source, iso, parse_iso
 
 TOURNAMENT = list(METHODS) + ["worst_case"]
@@ -77,11 +77,17 @@ class Engine:
                 if fr:
                     for o, p in fr[0].items():
                         self.L.upsert_fair(gid, o, m, ts, p, fr[1])
+            # venue scorecard: each venue on its own (power devig) -> which venue is most accurate?
+            outcomes, books = venue_books(qs)
+            if len(outcomes) >= 2:
+                for v, book in books.items():
+                    for o, p in zip(outcomes, devig([book[o] for o in outcomes], "power")):
+                        self.L.upsert_fair(gid, o, f"venue:{v}", ts, p, 1)
         self._refresh_calibration(now)
         n_bets = 0
         self.L.db.execute("DELETE FROM opps")
         for s in self.strats:
-            cands = find_edges(groups, s, self._cal_for(s))
+            cands = find_edges(groups, s, self._cal_for(s), now)
             bank = self.L.bankroll(s["name"], s.get("bankroll", 1000.0))
             for c in cands:
                 if parse_iso(c["start_time"]) - now > timedelta(hours=s.get("max_hours_to_start", 24 * 30)):

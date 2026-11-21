@@ -123,3 +123,74 @@ class TestEndToEnd(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestEvents(unittest.TestCase):
+    def test_events_demo_inclusive_edge_and_venue_scorecard(self):
+        from edgelab.analysis import tournament
+        with tempfile.TemporaryDirectory() as d:
+            L = Ledger(os.path.join(d, "t.db"))
+            start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+            w = DemoWorld(start, seed=5, sports_per_batch=0, pm_per_batch=3)
+            dom = ["politics", "geopolitics", "economics"]
+            strats = [
+                {"name": "incl", "domains": dom, "exclude_self": False, "min_ev": 0.03, "min_sources": 2, "max_price": 20},
+                {"name": "ctrl", "domains": dom, "exclude_self": False, "min_ev": -0.03, "max_ev": 0.0, "min_sources": 2,
+                 "staking": "flat", "flat_stake": 10},
+            ]
+            eng = Engine(L, [w], strats, log=lambda *a: None)
+            t = start
+            while t < start + timedelta(days=24):
+                eng.scan(t)
+                t += timedelta(hours=6)
+            tev = {}
+            for name in ("incl", "ctrl"):
+                rows = L.q("SELECT * FROM bets WHERE strategy=?", (name,))
+                self.assertGreater(len(rows), 20)
+                tev[name] = sum(w.true_prob(r["group_id"].split("|")[0][5:], r["outcome"]) * r["price"] - 1 for r in rows) / len(rows)
+            self.assertGreater(tev["incl"], 0)
+            self.assertLess(tev["ctrl"], 0)
+            venues = tournament(L, venues=True)
+            self.assertEqual(venues[0]["method"], "venue:demo_exchange_2")  # the planted accurate venue wins
+
+    def test_apr_and_horizon_filters(self):
+        from edgelab.model import find_edges, group_quotes
+        now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+        def mk(venue, o, price, days):
+            return Quote("x", venue, "politics", "e", "Q?", "binary", o, price,
+                         (now + timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ"))
+        for days, expect in ((5, 1), (300, 0)):
+            qs = [mk("polymarket", "Yes", 1 / 0.50, days), mk("polymarket", "No", 1 / 0.52, days),
+                  mk("kalshi", "Yes", 1 / 0.44, days), mk("kalshi", "No", 1 / 0.58, days)]
+            c = find_edges(group_quotes(qs), {"min_ev": 0.03, "max_days": 30, "min_apr": 0.5, "min_sources": 1}, now=now)
+            self.assertEqual(len([x for x in c if x["venue"] == "kalshi" and x["outcome"] == "Yes"]), expect, days)
+            if expect:
+                self.assertAlmostEqual(c[0]["apr"], c[0]["ev"] * 365 / 5, 6)
+
+    def test_retiring_does_not_break_preregistration(self):
+        with tempfile.TemporaryDirectory() as d:
+            L = Ledger(os.path.join(d, "t.db"))
+            L.register({"name": "s", "min_ev": 0.02}, "t0")
+            L.register({"name": "s", "min_ev": 0.02, "active": False, "retired": "why"}, "t1")
+
+    def test_match_pairs_same_question(self):
+        import json as _j
+        from unittest import mock
+        from edgelab import cli
+
+        class Fake:
+            def __init__(self, name, items):
+                self.name, self.items = name, items
+
+            def fetch(self, now):
+                return [Quote(self.name, self.name, "politics", f"{self.name}:{i}", n, "binary", "Yes", 2.0,
+                              "2026-12-31T00:00:00Z", ref={"id": i}) for i, n in self.items]
+        srcs = [Fake("kalshi", [("K1", "Will the Fed cut rates in December 2026?"), ("K2", "Will it snow in Paris?")]),
+                Fake("polymarket", [("P9", "Fed rate cut in December 2026?"), ("P8", "Fed cut in December 2025?")])]
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(cli, "build_sources", return_value=srcs):
+            out = os.path.join(d, "c.json")
+            cli.main(["--config", "/dev/null", "match", "--out", out])
+            pairs = _j.load(open(out))
+            self.assertEqual(len(pairs), 1)
+            self.assertEqual(pairs[0]["legs"], {"kalshi": "K1", "polymarket": "P9"})

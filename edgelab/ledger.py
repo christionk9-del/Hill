@@ -26,7 +26,7 @@ CREATE INDEX IF NOT EXISTS bets_status ON bets(status);
 
 
 def config_hash(cfg: dict) -> str:
-    core = {k: v for k, v in cfg.items() if k not in ("hypothesis", "notes")}
+    core = {k: v for k, v in cfg.items() if k not in ("hypothesis", "notes", "active", "retired")}
     return hashlib.sha256(json.dumps(core, sort_keys=True).encode()).hexdigest()[:12]
 
 

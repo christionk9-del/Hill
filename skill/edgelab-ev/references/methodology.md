@@ -1,5 +1,7 @@
 # Methodology reference
 
+Focus: event / prediction markets. The sportsbook example at the end still applies to generic devigging.
+
 ## Conversions
 | from | to prob |
 |---|---|
@@ -10,6 +12,14 @@
 
 Fair American from prob p: p ≥ 0.5 → −100·p/(1−p); else +100·(1−p)/p.
 
+## Event-contract worked example
+Polymarket (deep): YES ask 46¢, NO ask 56¢ → r = 0.46, 0.56, overround 2%. Power devig → fair YES ≈ 0.450.
+Kalshi YES ask 41¢ + taker fee 0.07·0.41·0.59 ≈ 1.7¢ → all-in cost 0.427.
+Consensus with Kalshi included as a signal: Kalshi's own devig (YES 41¢, NO 61¢, fees included) ≈ 0.397. Weighting Polymarket 0.8 and Kalshi 0.7 in log-odds gives fair ≈ 0.425.
+→ EV ≈ 0.425/0.427 − 1 ≈ **−0.4%**, so no trade. Exclude Kalshi and you'd get 0.450/0.427 − 1 = **+5.3%**: that's the winner's-curse inflation.
+CLI: `edgelab ev --fair 0.46 0.56 --bet 0.41 --fee-rate 0.07` shows the excluded-venue (+5.3%) view.
+Resolution in 30 days → APR = EV × 365/30.
+
 ## Devig methods (r = implied probs, Σr = 1 + hold)
 - **Multiplicative:** pᵢ = rᵢ / Σr
 - **Additive:** pᵢ = rᵢ − hold/n
@@ -18,7 +28,7 @@ Fair American from prob p: p ≥ 0.5 → −100·p/(1−p); else +100·(1−p)/p
 - **Odds ratio:** pᵢ = rᵢ / (c + rᵢ − c·rᵢ), c solved so Σp = 1.
 - **Worst case:** per outcome, the minimum across methods.
 
-### Worked example
+### Sportsbook example (generic devig)
 Pinnacle −120 / +110 → r = 0.5455, 0.4762, hold 2.16%.
 Multiplicative → 0.5339 / 0.4661. Power → 0.5350 / 0.4650 (fair underdog price +115).
 Soft book +105 on the underdog (d = 2.05): EV = 0.4650 × 2.05 − 1 = **−4.7%**, so no bet.

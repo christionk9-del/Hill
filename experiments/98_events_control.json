@@ -1,0 +1,12 @@
+{
+  "name": "events_control_negative_ev",
+  "control": true,
+  "hypothesis": "NEGATIVE CONTROL for event markets. Buys contracts the model rates -3%..0% EV. Must show negative CLV and ROI; if not, the event pipeline (fees, devig, mappings) is broken.",
+  "domains": ["politics", "geopolitics", "economics"],
+  "devig": "power",
+  "exclude_self": false,
+  "min_ev": -0.03, "max_ev": 0.0, "min_prob": 0.05, "max_price": 15,
+  "min_sources": 2,
+  "staking": "flat", "flat_stake": 10, "max_stake_pct": 0.02, "bankroll": 1000,
+  "max_hours_to_start": 1440
+}

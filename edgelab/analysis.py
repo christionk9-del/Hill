@@ -21,10 +21,13 @@ def _clean(x):
     return x
 
 
-def tournament(L: Ledger) -> list[dict]:
+def tournament(L: Ledger, venues: bool = False) -> list[dict]:
+    """Devig-method leaderboard, or (venues=True) per-venue accuracy scorecard.
+    Each entry is scored on the markets it quoted; the paired t uses only markets
+    shared with the leader, so it is the fair head-to-head comparison."""
     rows = L.q("""SELECT f.method, f.group_id, f.outcome, f.first_q, f.last_q, r.result, m.domain FROM fair f
                   JOIN results r ON r.group_id=f.group_id AND r.outcome=f.outcome
-                  JOIN markets m ON m.group_id=f.group_id AND m.outcome=f.outcome WHERE r.result IS NOT NULL""")
+                  JOIN markets m ON m.group_id=f.group_id AND m.outcome=f.outcome WHERE r.result IS NOT NULL AND (f.method LIKE 'venue:%') = ?""", (1 if venues else 0,))
     by = defaultdict(lambda: {"open": [], "close": [], "brier": [], "groups": set(), "dom": defaultdict(list), "pg": {}})
     for r in rows:
         d = by[r["method"]]
@@ -107,6 +110,6 @@ def build_report(L: Ledger, mode: str = "live") -> dict:
     return _clean({
         "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"), "mode": mode,
         "scans": {"n": sc["n"], "first": sc["a"], "last": sc["b"]},
-        "strategies": strategies, "tournament": tournament(L), "calibration": calibration(L),
+        "strategies": strategies, "tournament": tournament(L), "venues": tournament(L, venues=True), "calibration": calibration(L),
         "calibration_fits": fits, "opportunities": opps[:80], "recent_bets": recent,
     })

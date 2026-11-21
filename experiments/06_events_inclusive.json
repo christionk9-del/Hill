@@ -1,0 +1,11 @@
+{
+  "name": "events_inclusive_ev3",
+  "hypothesis": "Selection-bias fix. Excluding the bet venue from its own fair line throws away information and inflates EV (winner's curse). Including it as one weighted signal shrinks each gap toward the venue's own price, so model EV should track realised edge more closely (edge_capture nearer 100%) with fewer, better bets than events_consensus_ev3.",
+  "domains": ["politics", "geopolitics", "economics"],
+  "devig": "power",
+  "exclude_self": false,
+  "min_ev": 0.03, "max_ev": 0.30, "min_prob": 0.04, "max_price": 20,
+  "min_sources": 2,
+  "staking": "kelly", "kelly_fraction": 0.2, "max_stake_pct": 0.02, "bankroll": 1000,
+  "max_hours_to_start": 1440
+}

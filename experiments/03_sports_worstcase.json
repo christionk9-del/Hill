@@ -1,10 +1,21 @@
 {
   "name": "sports_worstcase_ev3",
   "hypothesis": "Conservative arm: worst-case devig across all methods and EV >= 3%. Fewer bets, higher hit-rate on +CLV.",
-  "domains": ["sports"],
+  "domains": [
+    "sports"
+  ],
   "devig": "worst_case",
-  "min_ev": 0.03, "max_ev": 0.25, "min_prob": 0.05, "max_price": 8,
-  "exclude_self": true, "min_sources": 1,
-  "staking": "kelly", "kelly_fraction": 0.25, "max_stake_pct": 0.02, "bankroll": 1000,
-  "max_hours_to_start": 48
+  "min_ev": 0.03,
+  "max_ev": 0.25,
+  "min_prob": 0.05,
+  "max_price": 8,
+  "exclude_self": true,
+  "min_sources": 1,
+  "staking": "kelly",
+  "kelly_fraction": 0.25,
+  "max_stake_pct": 0.02,
+  "bankroll": 1000,
+  "max_hours_to_start": 48,
+  "active": false,
+  "retired": "2026-11-21: project refocused on event markets (politics, geopolitics, economics). Kept for the record; re-activate to resume."
 }

@@ -1,71 +1,72 @@
-# EdgeLab: open +EV model & forward-testing lab
+# EdgeLab: open +EV model & forward-testing lab for event markets
 
-Find positive-expected-value bets in **sportsbooks _and_ prediction markets** (politics, geopolitics, economics) with your own transparent model instead of a $100–$300/month odds-screen subscription. Then **prove** whether the edge is real with a pre-registered, forward-only paper-trading test.
+Find mispriced **event contracts** (politics, geopolitics, economics) across **Kalshi, Polymarket and Manifold** with your own transparent model instead of a paid odds-screen subscription. Then **prove** whether the edge is real with a pre-registered, forward-only paper-trading test.
 
-* **Zero dependencies.** Pure Python 3.11+ standard library. Clone and run.
-* **Free data.** The Odds API (free tier, includes Pinnacle/Betfair), Kalshi, Polymarket and Manifold public APIs.
-* **Scientific method built in.** Hypotheses are pre-registered and hash-locked. Every bet is timestamped before the outcome. There's a negative control, A/B arms, CLV with t-stats, bootstrap CIs and a verdict engine.
-* **Dashboard.** A single self-contained HTML file. Share it, host it, or embed it in a lead-magnet page.
+* **Zero dependencies.** Pure Python 3.11+ standard library.
+* **Free data, no keys.** Kalshi, Polymarket (Gamma) and Manifold public APIs.
+* **Scientific method built in.** Hash-locked hypotheses, timestamped paper bets, a negative control, A/B arms, CLV t-stats, bootstrap CIs, a venue accuracy scorecard and a verdict engine.
+* **Dashboard.** One self-contained HTML file. Share it or embed it in a lead-magnet page.
+* Sports (via The Odds API) is still in the code but **off by default**. Set `[sources.oddsapi] enabled = true` to bring it back.
 
 ```bash
-python3 -m edgelab demo                      # 45-day synthetic forward test, ~1 min, writes dashboard_demo.html
-python3 -m edgelab ev --fair -110 -110 --bet +105     # quick EV calculator
-cp edgelab.example.toml edgelab.toml && export ODDS_API_KEY=...   # free key: the-odds-api.com
-python3 -m edgelab scan --every 900          # live paper trading every 15 min (+ dashboard.html)
-python3 -m edgelab report                    # verdicts + devig tournament
-python3 -m unittest discover -s tests -t .   # 12 tests
+python3 -m edgelab demo                                  # 45-day synthetic event-market forward test (~1 min) -> dashboard_demo.html
+python3 -m edgelab ev --fair 0.46 0.56 --bet 0.41        # contract EV: deep venue YES/NO asks vs the price you can get
+cp edgelab.example.toml edgelab.toml
+python3 -m edgelab match                                 # suggest Kalshi/Polymarket/Manifold pairs -> mappings.candidates.json
+#   review each pair (same question? same resolution rules & date?) and copy the good ones into mappings.json
+python3 -m edgelab scan --every 900                      # live paper trading every 15 min (+ dashboard.html)
+python3 -m edgelab report                                # verdicts, venue scorecard, devig tournament
+python3 -m unittest discover -s tests -t .               # 16 tests
 ```
 
 ## The model
 
 ```
-fair(outcome) = calibrate( consensus_venues( devig(venue prices) ) )
-EV            = fair × decimal_price − 1          stake = ¼-Kelly, capped at 2% bankroll
+fair(outcome) = calibrate( consensus_venues( devig(YES ask, NO ask) ) )
+EV  = fair / all-in cost − 1          APR = EV × 365 / days-to-resolution
+stake = ⅕–¼ Kelly, capped at 2% of bankroll
 ```
 
-1. **Devig.** Each venue's full outcome set → vig-free probabilities. Five methods are available (multiplicative, additive, power, Shin, odds-ratio), plus `worst_case`, which takes the minimum of all five. Which one is right is *measured*: the **devig tournament** scores every method by log loss on settled markets.
-2. **Consensus.** A weighted average in log-odds space over information sources: Pinnacle, Betfair, Polymarket, Kalshi, Manifold. Soft books get weight 0 and are what you *bet into*. `exclude_self` removes the venue you're betting from its own fair line.
-3. **Calibration** (optional). Per-domain logistic slope `logit q' = b·logit q`, fitted **walk-forward** only on your own settled outcomes. It targets the favourite-longshot bias of prediction markets.
-
-Prediction-market contracts are treated like a two-way book: YES ask and NO ask, net of fees. Kalshi's taker fee `0.07·P·(1−P)` is applied, so spreads and fees are never mistaken for edge.
+1. **Each venue is a two-way book.** The YES ask and NO ask (after fees) sum to more than $1, and that overround is devigged like a bookmaker's margin. Kalshi's taker fee `0.07·P·(1−P)` is applied, so spreads and fees are never mistaken for edge.
+2. **Cross-venue consensus.** A weighted average in log-odds space: Polymarket 0.8, Kalshi 0.7, Manifold 0.3 (play money, so signal only). Questions only pool once they're linked in `mappings.json`. *Matching resolution rules is the #1 source of fake edges.*
+3. **Calibration** (optional). A per-domain logistic slope fitted walk-forward on your settled outcomes, aimed at the favourite-longshot bias.
+4. **Venue scorecard.** Every venue's own closing price is scored on outcomes. Use it to set weights from evidence.
+5. **Capital lock-up.** Contracts can tie up money for months. `max_days` and `min_apr` let a strategy demand an annualised return.
 
 ## The scientific method, enforced
 
 | Step | In EdgeLab |
 |---|---|
-| Hypothesis | `experiments/*.json`. Each file has a `hypothesis` and fixed rules. |
-| Pre-registration | Config is SHA-hashed on first scan. Editing rules under the same name is refused ("that's p-hacking, use a new name"). |
-| Controlled experiment | A/B arms differ by one variable (e.g. `power` vs `multiplicative`). `control_negative_ev` bets −EV on purpose and must lose. If it doesn't, the pipeline is broken. |
-| Measurement | **CLV** against one common benchmark (power devig, default weights, bet venue excluded). It converges ~10× faster than ROI. Also ROI with bootstrap CI, Brier, calibration curve, and a z-score of P&L vs the model's own expected P&L. |
-| Conclusion | Verdicts: `COLLECTING → INCONCLUSIVE → PROMISING (CLV t>3) → CONFIRMED (CLV + ROI significant, n ≥ required)` or `REJECT`. |
-| Ground truth | `demo` runs a synthetic world with *known* probabilities and planted inefficiencies, so you can grade the model itself (`trueEV` column). |
+| Hypothesis | `experiments/*.json`. Each has a `hypothesis` and fixed rules. |
+| Pre-registration | The config is SHA-hashed. Editing rules under the same name is refused. Retiring (`"active": false`) is allowed. |
+| Control | `events_control_negative_ev` buys −EV contracts on purpose and must lose. |
+| Measurement | CLV against one common benchmark, ROI with bootstrap CI, Brier, a calibration curve, edge capture (CLV ÷ model EV) and the venue scorecard. |
+| Conclusion | `COLLECTING → INCONCLUSIVE → PROMISING → CONFIRMED`, or `REJECT`. |
+| Ground truth | `demo` simulates a world with *known* probabilities, so the model itself can be graded (`trueEV`). |
 
-### What the demo teaches (seed 7, 45 days)
+### What the demo taught (seed 7, 45 days, events only)
 
-* Sports arms bet into soft books against the sharp consensus. True EV is **+2.2…+2.9%** and CLV is **+3.8…+4.7% (t ≈ 25)**, yet realised ROI is **−6.5%** after ~730 bets. That is pure variance (z ≈ −1.7). ROI alone would have killed a winning strategy. CLV did not.
-* Event-market arms show model EV ≈ 10% but **true EV ≈ +1%**. When you pick the bets with the biggest gaps, you also pick the ones where the benchmark is most wrong (winner's curse). **CLV measured against the same venues inherits their errors.** Use `edge_capture` (CLV ÷ model EV) and long forward tests before trusting event-market EV.
-* The negative control loses on every metric. The measurement works.
-
-## Data sources
-
-| Source | Domain | Key | Notes |
+| Arm | Model EV | True EV | Lesson |
 |---|---|---|---|
-| The Odds API | sports | free tier (500 credits/mo) | `eu` region needed for Pinnacle/Betfair sharp lines |
-| Kalshi | politics, world, economics | none for data | taker fees modelled |
-| Polymarket (Gamma) | politics, geopolitics, economics | none | best bid/ask |
-| Manifold | everything | none | play money: signal only, never bettable |
+| `events_consensus_ev3` (bet venue excluded from its own fair line) | +9.8% | **+1.0%** | Winner's curse: the biggest gaps are partly errors in the *benchmark* |
+| `events_inclusive_ev3` (bet venue kept as one weighted signal) | +6.6% | **+4.2%** | Pre-registered fix: fewer, better bets |
+| `events_short_dated_apr` (≤14 days, APR ≥ 50%) | +5.6% | **+3.7%** | Capital turns over fast |
+| `events_consensus_calibrated` | +10.3% | −0.2% | Calibration on thin data didn't help (yet) |
+| `events_control_negative_ev` | −1.4% | −2.9% | The measuring stick works |
 
-Cross-venue pooling for event markets needs `mappings.json`. Run `python3 -m edgelab match` to get fuzzy-matched suggestions and review them by hand. This uses official public APIs only; it does not scrape OddsJam or other paid screens, which their terms forbid.
+The venue scorecard correctly ranked the planted accurate venue first. These are *simulated* results that check the pipeline, not evidence about real markets. Only the live forward test is.
+
+Sports arms (`01–03`, `99`) are retired and kept for the record.
 
 ## Layout
 
 ```
 edgelab/  odds.py devig.py model.py simulator.py stats.py analysis.py ledger.py cli.py dashboard_template.html
-          sources/{oddsapi,kalshi,polymarket,manifold,demo}.py
+          sources/{kalshi,polymarket,manifold,demo,oddsapi}.py
 experiments/   pre-registered strategies (JSON)
 skill/edgelab-ev/   Claude skill (give-away)
-docs/          monetization roadmap PDF + generator
+docs/          monetization roadmap PDF + generator, demo dashboard, zipped skill
 ```
 
 ## Responsible use
-Research and education tool. Paper results ≠ future returns. Sportsbooks limit winning accounts. Bet only where legal and only what you can afford to lose. US problem-gambling help: 1-800-GAMBLER.
+Research and education tool. Paper results ≠ future returns. Access to prediction markets depends on where you live, so check the rules. Trade only what you can afford to lose. US problem-gambling help: 1-800-GAMBLER.

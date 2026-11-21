@@ -4,8 +4,9 @@ strategies_dir = "experiments"
 mappings = "mappings.json"   # cross-venue links (see mappings.example.json / `edgelab match`)
 store_quotes = true          # keep every raw price snapshot for later research
 
+# The project focuses on EVENT markets. Sports support remains in the code but is off by default.
 [sources.oddsapi]            # sportsbooks incl. Pinnacle/Betfair. Free key: the-odds-api.com
-enabled = true
+enabled = false
 # api_key = "..."            # or export ODDS_API_KEY=...
 sports = ["basketball_nba", "americanfootball_nfl", "icehockey_nhl", "soccer_epl"]
 regions = ["us", "eu"]       # eu is where Pinnacle/Betfair live — needed for the sharp consensus
@@ -13,7 +14,7 @@ markets = ["h2h", "spreads", "totals"]
 
 [sources.kalshi]             # politics / geopolitics / economics, no key needed
 enabled = true
-categories = ["Politics", "Elections", "World", "Economics"]
+categories = ["Politics", "Elections", "World", "Economics", "Financials", "Companies"]
 min_volume = 1000
 max_pages = 5
 
