@@ -1,0 +1,11 @@
+{
+  "name": "control_negative_ev",
+  "control": true,
+  "hypothesis": "NEGATIVE CONTROL. Bets the model rates -3%..0% EV. Must show negative CLV and ROI; if it doesn't, the measurement pipeline is broken, not the market.",
+  "domains": [],
+  "devig": "power",
+  "min_ev": -0.03, "max_ev": 0.0, "min_prob": 0.05, "max_price": 10,
+  "exclude_self": true, "min_sources": 1,
+  "staking": "flat", "flat_stake": 10, "max_stake_pct": 0.02, "bankroll": 1000,
+  "max_hours_to_start": 48
+}

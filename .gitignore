@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.db
+edgelab.toml
+mappings.json
+dashboard.html
+dashboard_demo.html
+.env

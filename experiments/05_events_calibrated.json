@@ -1,0 +1,11 @@
+{
+  "name": "events_consensus_calibrated",
+  "hypothesis": "Prediction markets show a favourite-longshot bias. Adding a walk-forward logistic recalibration (fitted only on our own settled outcomes) to the consensus raises CLV and ROI vs the uncalibrated arm.",
+  "domains": ["politics", "geopolitics", "economics"],
+  "devig": "power",
+  "use_calibration": true,
+  "min_ev": 0.03, "max_ev": 0.30, "min_prob": 0.04, "max_price": 20,
+  "exclude_self": true, "min_sources": 2,
+  "staking": "kelly", "kelly_fraction": 0.2, "max_stake_pct": 0.02, "bankroll": 1000,
+  "max_hours_to_start": 1440
+}

@@ -1,0 +1,9 @@
+[
+  {
+    "id": "example-fed-cut-dec",
+    "name": "Fed cuts rates at the December meeting",
+    "domain": "economics",
+    "legs": {"kalshi": "KXFEDDECISION-26DEC-C25", "polymarket": "123456", "manifold": "abcXYZ"},
+    "invert": {"polymarket": false}
+  }
+]

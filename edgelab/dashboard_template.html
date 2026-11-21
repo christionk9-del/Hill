@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EdgeLab Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  color-scheme: light;
+  --bg:#f4f4f1; --surface:#fcfcfb; --surface-2:#f0efeb; --text:#0b0b0b; --text-2:#52514e; --muted:#7a7974;
+  --grid:#e1e0d9; --border:rgba(11,11,11,.10); --accent:#2a78d6;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --s8:#e34948;
+  --good:#006300; --good-fill:#0ca30c; --warn:#fab219; --bad:#d03b3b;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  color-scheme: dark;
+  --bg:#111110; --surface:#1a1a19; --surface-2:#232321; --text:#f0efec; --text-2:#c3c2b7; --muted:#8f8e86;
+  --grid:#2c2c2a; --border:rgba(255,255,255,.10); --accent:#3987e5;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#0ca30c; --s7:#9085e9; --s8:#e66767;
+  --good:#0ca30c; --good-fill:#0ca30c; --bad:#e66767;
+}}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#111110; --surface:#1a1a19; --surface-2:#232321; --text:#f0efec; --text-2:#c3c2b7; --muted:#8f8e86;
+  --grid:#2c2c2a; --border:rgba(255,255,255,.10); --accent:#3987e5;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#0ca30c; --s7:#9085e9; --s8:#e66767;
+  --good:#0ca30c; --good-fill:#0ca30c; --bad:#e66767;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1240px;margin:0 auto;padding:20px 16px 48px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px}
+h1{font-size:22px;margin:0;letter-spacing:-.01em}
+h1 span{color:var(--muted);font-weight:500}
+h2{font-size:15px;margin:0 0 2px}
+.sub{color:var(--text-2);font-size:12.5px}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--surface)}
+.badge.demo{background:var(--warn);color:#0b0b0b;border-color:transparent}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+select,button{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px}
+button{cursor:pointer}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;min-width:0}
+.grid{display:grid;gap:14px}
+.kpis{grid-template-columns:repeat(4,minmax(0,1fr));margin:14px 0}
+@media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi .l{color:var(--text-2);font-size:12px}
+.kpi .v{font-size:24px;font-weight:650;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-top:2px}
+.kpi .d{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.two{grid-template-columns:1fr 1fr}
+@media (max-width:860px){.two{grid-template-columns:1fr}}
+.chart{position:relative;height:280px;margin-top:10px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:7px 8px;border-bottom:1px solid var(--grid);text-align:left;white-space:nowrap}
+th{color:var(--text-2);font-weight:600;font-size:12px}
+td.num,th.num{text-align:right}
+td.wrap{white-space:normal;min-width:200px}
+.tbl{overflow-x:auto;margin-top:8px}
+.tbl.scroll{max-height:520px;overflow-y:auto}
+.tbl.scroll thead th{position:sticky;top:0;background:var(--surface)}
+.pos{color:var(--good)} .neg{color:var(--bad)}
+.verdict{display:inline-flex;align-items:center;gap:6px;font-weight:600}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+.sw{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:6px;vertical-align:-1px}
+.hyp{color:var(--text-2);font-size:13px;margin:6px 0 0;max-width:900px}
+.section{margin-top:14px}
+footer{margin-top:28px;color:var(--muted);font-size:12px;max-width:900px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button[aria-pressed="true"]{background:var(--text);color:var(--surface);border-color:var(--text)}
+.empty{color:var(--muted);padding:18px 0;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>EdgeLab <span>· forward-test lab</span></h1>
+      <div class="sub" id="meta"></div>
+    </div>
+    <div class="row">
+      <span id="mode"></span>
+      <button id="theme" type="button" aria-label="Toggle theme">◐ Theme</button>
+    </div>
+  </header>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <h2>Pre-registered experiments</h2>
+        <div class="sub">Each strategy is a hypothesis whose rules were locked before it saw any outcome (config hash shown). Closing-line value (CLV) is measured against one common benchmark.</div>
+      </div>
+    </div>
+    <div class="tbl"><table id="cmp"></table></div>
+  </div>
+
+  <div class="row section" style="justify-content:space-between">
+    <div class="row"><label class="sub" for="strat">Strategy</label><select id="strat"></select></div>
+    <div class="row"><label class="sub" for="dom">Market</label><select id="dom"><option value="">All domains</option></select></div>
+  </div>
+  <p class="hyp" id="hyp"></p>
+  <div class="grid kpis" id="kpis"></div>
+
+  <div class="grid two">
+    <div class="card"><h2>Bankroll P&amp;L, all strategies</h2><div class="sub">Cumulative profit in units of $ as bets settle</div><div class="chart"><canvas id="eq"></canvas></div></div>
+    <div class="card"><h2>CLV distribution</h2><div class="sub" id="clvsub">EV of each bet re-priced at the closing fair line</div><div class="chart"><canvas id="clv"></canvas></div></div>
+  </div>
+
+  <div class="grid two section">
+    <div class="card"><h2>Calibration: is the model honest?</h2><div class="sub">Predicted fair probability vs observed win rate (closing consensus, power devig). On the diagonal means calibrated.</div>
+      <div class="row" style="margin-top:8px"><select id="caldom"></select></div>
+      <div class="chart"><canvas id="cal"></canvas></div></div>
+    <div class="card"><h2>Devig tournament</h2><div class="sub">Which de-vig method predicts outcomes best? Closing log loss on settled markets, lower is better. Paired t vs the leader: |t| &lt; 2 means no proven difference.</div>
+      <div class="tbl"><table id="tour"></table></div>
+      <h2 style="margin-top:16px">Breakdown by market (selected strategy)</h2>
+      <div class="tbl"><table id="bydom"></table></div>
+    </div>
+  </div>
+
+  <div class="card section">
+    <h2>Live +EV board, latest scan</h2><div class="sub">Every candidate each strategy flagged on the most recent snapshot. Fair = model probability; EV = fair × price − 1.</div>
+    <div class="tbl scroll"><table id="opps"></table></div>
+  </div>
+
+  <div class="card section">
+    <h2>Paper-bet ledger, most recent</h2>
+    <div class="tbl scroll"><table id="bets"></table></div>
+  </div>
+
+  <footer>
+    EdgeLab is a research tool, not betting advice. Paper results do not guarantee future returns; limits, line movement and account restrictions apply in the real world. Bet only where legal, only what you can afford to lose. Problem gambling help (US): 1-800-GAMBLER.
+  </footer>
+</div>
+
+<script>
+const D=/*__EDGELAB_DATA__*/null;
+const $=s=>document.querySelector(s);
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const pct=(v,d=2)=>v==null?"—":(v>=0?"+":"")+(v*100).toFixed(d)+"%";
+const num=(v,d=1)=>v==null?"—":(+v).toFixed(d);
+const money=v=>v==null?"—":(v<0?"−$":"$")+Math.abs(v).toLocaleString(undefined,{maximumFractionDigits:0});
+const cls=v=>v==null?"":(v>0?"pos":v<0?"neg":"");
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const amer=d=>d>=2?"+"+Math.round((d-1)*100):Math.round(-100/(d-1));
+const SERIES=["--s1","--s2","--s3","--s4","--s5","--s6","--s7","--s8"];
+const strats=D.strategies||[];
+const TRUTH=strats.some(s=>s.summary.true_ev!=null);
+const colorOf=name=>css(SERIES[Math.max(0,strats.findIndex(s=>s.name===name))%8]);
+
+function verdictBadge(v){
+  const k=(v||"").split(" ")[0];
+  const map={CONFIRMED:["--good-fill","Confirmed"],PROMISING:["--s1","Promising"],INCONCLUSIVE:["--muted","Inconclusive"],COLLECTING:["--muted","Collecting"],REJECT:["--bad","Rejected"]};
+  const [c,l]=map[k]||["--muted",k];
+  return `<span class="verdict" title="${esc(v)}"><span class="dot" style="background:${css(c)}"></span>${l}</span>`;
+}
+
+$("#meta").textContent=`Generated ${D.generated} · ${D.scans.n} scans${D.scans.first?` · ${D.scans.first.slice(0,10)} → ${D.scans.last.slice(0,10)}`:""}`;
+$("#mode").innerHTML=D.mode==="demo"?`<span class="badge demo">DEMO · synthetic market with planted edges</span>`:`<span class="badge">LIVE paper trading</span>`;
+
+// comparison table
+$("#cmp").innerHTML=`<thead><tr><th>Strategy</th><th class="num">Bets</th><th class="num">Settled</th><th class="num">ROI</th><th class="num">ROI 95% CI</th><th class="num">Avg CLV</th><th class="num">CLV t</th><th class="num">Beat close</th><th class="num">P&amp;L</th>${TRUTH?'<th class="num">True EV</th>':""}<th>Verdict</th></tr></thead><tbody>`+
+ strats.map(s=>{const m=s.summary;return `<tr><td><span class="sw" style="background:${colorOf(s.name)}"></span>${esc(s.name)}${s.control?' <span class="badge">control</span>':""}<div class="sub">#${s.hash}</div></td>
+ <td class="num">${m.n_bets}</td><td class="num">${m.n_settled}</td><td class="num ${cls(m.roi)}">${pct(m.roi)}</td>
+ <td class="num">${m.roi_ci[0]==null?"—":pct(m.roi_ci[0],1)+" … "+pct(m.roi_ci[1],1)}</td>
+ <td class="num ${cls(m.clv)}">${pct(m.clv)}</td><td class="num">${num(m.clv_t)}</td><td class="num">${m.beat_close==null?"—":(m.beat_close*100).toFixed(0)+"%"}</td>
+ <td class="num ${cls(m.pnl)}">${money(m.pnl)}</td>${TRUTH?`<td class="num ${cls(m.true_ev)}">${pct(m.true_ev)}</td>`:""}<td>${verdictBadge(m.verdict)}</td></tr>`}).join("")+`</tbody>`;
+if(!strats.length)$("#cmp").innerHTML=`<tr><td class="empty">No strategies yet. Run a scan.</td></tr>`;
+
+// selectors
+strats.forEach((s,i)=>$("#strat").insertAdjacentHTML("beforeend",`<option value="${i}">${esc(s.name)}</option>`));
+const doms=[...new Set([...(D.opportunities||[]).map(o=>o.domain),...strats.flatMap(s=>Object.keys(s.by_domain))])];
+doms.forEach(d=>$("#dom").insertAdjacentHTML("beforeend",`<option>${esc(d)}</option>`));
+Object.keys(D.calibration||{}).sort((a,b)=>a==="all"?-1:b==="all"?1:a.localeCompare(b)).forEach(d=>$("#caldom").insertAdjacentHTML("beforeend",`<option value="${d}">${d==="all"?"All markets":d} (n=${D.calibration[d].n})</option>`));
+
+const HAS_CHART=!!window.Chart;
+if(HAS_CHART)Chart.defaults.font.family=getComputedStyle(document.body).fontFamily;
+let charts={};
+function base(){return{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:"nearest",intersect:false},
+  plugins:{legend:{labels:{color:css("--text-2"),boxWidth:10,boxHeight:10,usePointStyle:true}},tooltip:{backgroundColor:css("--surface-2"),titleColor:css("--text"),bodyColor:css("--text"),borderColor:css("--border"),borderWidth:1,padding:10}},
+  scales:{x:{grid:{color:css("--grid")},ticks:{color:css("--muted"),maxRotation:0,autoSkipPadding:16},border:{color:css("--grid")}},y:{grid:{color:css("--grid")},ticks:{color:css("--muted")},border:{display:false}}}}}
+
+function drawEquity(){
+  if(!HAS_CHART)return;
+  charts.eq?.destroy();
+  const ds=strats.map(s=>({label:s.name,data:s.curve.map(([t,v])=>({x:Date.parse(t),y:v})),borderColor:colorOf(s.name),backgroundColor:colorOf(s.name),borderWidth:2,pointRadius:0,pointHitRadius:6,stepped:false,tension:0}));
+  const o=base();o.scales.x.type="linear";o.scales.x.ticks.callback=v=>new Date(v).toLocaleDateString(undefined,{month:"short",day:"numeric"});
+  o.scales.y.ticks.callback=v=>money(v);
+  o.plugins.tooltip.callbacks={title:i=>new Date(i[0].parsed.x).toLocaleString(),label:i=>` ${i.dataset.label}: ${money(i.parsed.y)}`};
+  charts.eq=new Chart($("#eq"),{type:"line",data:{datasets:ds},options:o});
+}
+function drawClv(s){
+  if(!HAS_CHART)return;
+  charts.clv?.destroy();
+  const h=s.clv_hist;const labels=h.counts.map((_,i)=>(h.edges[i]*100).toFixed(0)+"%");
+  const o=base();o.plugins.legend.display=false;o.interaction={mode:"index",intersect:false};
+  o.plugins.tooltip.callbacks={title:i=>`CLV ${(h.edges[i[0].dataIndex]*100).toFixed(0)}% to ${(h.edges[i[0].dataIndex+1]*100).toFixed(0)}%`,label:i=>` ${i.parsed.y} bets`};
+  o.scales.x.grid.display=false;
+  charts.clv=new Chart($("#clv"),{type:"bar",data:{labels,datasets:[{data:h.counts,backgroundColor:h.edges.slice(0,-1).map(e=>e<0?css("--s2"):css("--s1")),borderRadius:{topLeft:4,topRight:4},borderSkipped:"bottom",categoryPercentage:.92,barPercentage:.92}]},options:o});
+  $("#clvsub").innerHTML=`${esc(s.name)}. <span class="sw" style="background:${css("--s1")}"></span>beat the close <span class="sw" style="background:${css("--s2")};margin-left:8px"></span>worse than close`;
+}
+function drawCal(){
+  if(!HAS_CHART)return;
+  charts.cal?.destroy();
+  const c=(D.calibration||{})[$("#caldom").value];
+  const pts=c?c.table.map(r=>({x:r.pred,y:r.actual,n:r.n})):[];
+  const o=base();o.scales.x.type="linear";o.scales.x.min=0;o.scales.x.max=1;o.scales.y.min=0;o.scales.y.max=1;
+  o.scales.x.title={display:true,text:"Predicted probability",color:css("--text-2")};o.scales.y.title={display:true,text:"Observed frequency",color:css("--text-2")};
+  o.scales.x.ticks.callback=o.scales.y.ticks.callback=v=>(v*100).toFixed(0)+"%";
+  o.plugins.tooltip.callbacks={label:i=>i.datasetIndex?"":` predicted ${(i.parsed.x*100).toFixed(1)}% → observed ${(i.parsed.y*100).toFixed(1)}% (n=${i.raw.n})`};
+  o.plugins.tooltip.filter=i=>i.datasetIndex===0;
+  charts.cal=new Chart($("#cal"),{type:"scatter",data:{datasets:[
+    {label:"Model",data:pts,backgroundColor:css("--s1"),borderColor:css("--surface"),borderWidth:2,pointRadius:pts.map(p=>Math.max(5,Math.min(11,3+Math.sqrt(p.n)/2))),pointHoverRadius:9},
+    {label:"Perfect calibration",type:"line",data:[{x:0,y:0},{x:1,y:1}],borderColor:css("--muted"),borderDash:[4,4],borderWidth:1.5,pointRadius:0}]},options:o});
+}
+function renderStrategy(){
+  const s=strats[+$("#strat").value];if(!s)return;
+  const m=s.summary;
+  $("#hyp").innerHTML=`<b>Hypothesis:</b> ${esc(s.hypothesis)}`;
+  const k=[["Verdict",verdictBadge(m.verdict),m.verdict.split("—")[1]||""],
+   ["Avg CLV",`<span class="${cls(m.clv)}">${pct(m.clv)}</span>`,`t = ${num(m.clv_t)} · p = ${m.p_clv==null?"—":m.p_clv.toExponential(1)}`],
+   ["Realised ROI",`<span class="${cls(m.roi)}">${pct(m.roi)}</span>`,m.roi_ci[0]==null?"":`95% CI ${pct(m.roi_ci[0],1)} … ${pct(m.roi_ci[1],1)}`],
+   ["P&L",`<span class="${cls(m.pnl)}">${money(m.pnl)}</span>`,`model expected ${money(m.expected_pnl)} · z ${num(m.luck_z)}`],
+   ["Bets",m.n_bets,`${m.n_settled} settled · ${m.n_open} open`],
+   ["Avg model EV",pct(m.avg_ev),m.true_ev!=null?`TRUE EV ${pct(m.true_ev)} (demo ground truth)`:`avg price ${num(m.avg_price,2)} · CLV/EV ${m.edge_capture==null?"—":(m.edge_capture*100).toFixed(0)+"%"}`],
+   ["Brier score",m.brier==null?"—":m.brier.toFixed(4),m.brier_market==null?"":`vs ${m.brier_market.toFixed(4)} raw implied`],
+   ["Max drawdown",money(m.max_dd),`need ~${m.bets_needed} bets for ROI proof`]];
+  $("#kpis").innerHTML=k.map(([l,v,d])=>`<div class="card kpi"><div class="l">${l}</div><div class="v" style="${l==="Verdict"?"font-size:17px":""}">${v}</div><div class="d">${esc(d)}</div></div>`).join("");
+  $("#bydom").innerHTML=`<thead><tr><th>Market</th><th class="num">Bets</th><th class="num">Settled</th><th class="num">ROI</th><th class="num">CLV</th><th class="num">CLV t</th><th class="num">P&amp;L</th></tr></thead><tbody>`+
+    (Object.entries(s.by_domain).map(([d,v])=>`<tr><td>${esc(d)}</td><td class="num">${v.n_bets}</td><td class="num">${v.n_settled}</td><td class="num ${cls(v.roi)}">${pct(v.roi)}</td><td class="num ${cls(v.clv)}">${pct(v.clv)}</td><td class="num">${num(v.clv_t)}</td><td class="num ${cls(v.pnl)}">${money(v.pnl)}</td></tr>`).join("")||`<tr><td colspan="7" class="empty">No bets yet</td></tr>`)+`</tbody>`;
+  drawClv(s);renderTables();
+}
+function renderTables(){
+  const dom=$("#dom").value, sname=strats[+$("#strat").value]?.name;
+  const ctrl=new Set(strats.filter(s=>s.control).map(s=>s.name)), seen=new Set();
+  const opps=(D.opportunities||[]).filter(o=>!ctrl.has(o.strategy)&&(!dom||o.domain===dom)&&o.ev>0).filter(o=>{const k=o.group_id+o.outcome+o.venue;if(seen.has(k))return false;seen.add(k);return true;});
+  $("#opps").innerHTML=`<thead><tr><th>Event</th><th>Bet</th><th>Venue</th><th class="num">Price</th><th class="num">Fair</th><th class="num">Fair price</th><th class="num">EV</th><th class="num">¼ Kelly</th><th>Market</th><th>Strategy</th></tr></thead><tbody>`+
+   (opps.slice(0,30).map(o=>`<tr><td class="wrap">${esc(o.event_name)}<div class="sub">${esc(o.market_key)} · ${esc((o.start_time||"").slice(0,16).replace("T"," "))}</div></td><td>${esc(o.outcome)}</td><td>${esc(o.venue)}</td>
+   <td class="num">${amer(o.price)} <span class="sub">${o.price.toFixed(2)}</span></td><td class="num">${(o.q*100).toFixed(1)}%</td><td class="num">${amer(1/o.q)}</td><td class="num pos">${pct(o.ev)}</td><td class="num">${(o.kelly*25).toFixed(2)}%</td><td>${esc(o.domain)}</td><td class="sub">${esc(o.strategy)}</td></tr>`).join("")||`<tr><td colspan="10" class="empty">No +EV candidates on the latest scan</td></tr>`)+`</tbody>`;
+  const bets=(D.recent_bets||[]).filter(b=>(!dom||b.domain===dom)&&(!sname||b.strategy===sname));
+  $("#bets").innerHTML=`<thead><tr><th>Placed</th><th>Event</th><th>Bet</th><th>Venue</th><th class="num">Price</th><th class="num">Stake</th><th class="num">EV</th><th class="num">CLV</th><th>Status</th><th class="num">P&amp;L</th></tr></thead><tbody>`+
+   (bets.slice(0,40).map(b=>`<tr><td>${esc(b.ts.slice(0,16).replace("T"," "))}</td><td class="wrap">${esc(b.event_name)}</td><td>${esc(b.outcome)}</td><td>${esc(b.venue)}</td><td class="num">${amer(b.price)}</td><td class="num">$${b.stake.toFixed(2)}</td>
+   <td class="num">${pct(b.ev)}</td><td class="num ${cls(b.clv)}">${pct(b.clv)}</td><td>${b.status==="settled"?(b.result>=1?"Won":"Lost"):b.status}</td><td class="num ${cls(b.pnl)}">${b.pnl==null?"—":money(b.pnl)}</td></tr>`).join("")||`<tr><td colspan="10" class="empty">No bets for this filter</td></tr>`)+`</tbody>`;
+}
+function renderTour(){
+  const t=D.tournament||[];
+  $("#tour").innerHTML=`<thead><tr><th>Method</th><th class="num">Log loss</th><th class="num">Δ vs best</th><th class="num">Paired t</th><th class="num">Opening LL</th><th class="num">Markets</th></tr></thead><tbody>`+
+   (t.map((r,i)=>`<tr><td>${i===0?"🏆 ":""}${esc(r.method)}</td><td class="num">${r.logloss_close.toFixed(5)}</td><td class="num">${i?"+"+r.delta_vs_best.toFixed(5):"—"}</td><td class="num">${r.t_vs_best==null?"—":num(r.t_vs_best)}</td><td class="num">${r.logloss_open.toFixed(5)}</td><td class="num">${r.n_groups}</td></tr>`).join("")||`<tr><td colspan="6" class="empty">Needs settled markets</td></tr>`)+`</tbody>`;
+}
+function all(){drawEquity();renderStrategy();drawCal();renderTour();}
+$("#strat").onchange=renderStrategy;$("#dom").onchange=renderTables;$("#caldom").onchange=drawCal;
+$("#theme").onclick=()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme: dark)").matches;r.dataset.theme=dark?"light":"dark";try{localStorage.setItem("edgelab-theme",r.dataset.theme)}catch(e){};all();};
+try{const t=localStorage.getItem("edgelab-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}
+all();
+if(!HAS_CHART)document.querySelectorAll(".chart").forEach(c=>c.innerHTML="<p class='empty'>Charts need internet access (Chart.js from cdnjs). The tables still work offline.</p>");
+</script>
+</body>
+</html>
