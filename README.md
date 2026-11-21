@@ -85,6 +85,21 @@ whether the flagged legs beat their cost. Player props are not matched (sharp bo
   This is a speed game: the edge exists only if your price feed and orders beat other
   bots by a few seconds. One day of data, so treat it as a lead, not proof.
 
+### Take-profit rules on BTC up/down (`kalshi_bot/updown_tp.py`)
+
+Entries pay the real ask, exits get the real bid, taker fee on both legs.
+
+| Rule | Dec–Jan | Mar–Sep 2026 (out of sample) |
+|---|---|---|
+| DOWN 20–35¢, 2–3 min in, sell at +20% | $0.82 per $1 (901 trades) | **$0.79** (2,193 trades) |
+| Same, hold to settlement | — | $0.82 |
+| DOWN 20–35¢ in first 45 s, hold (best Dec–Jan find) | $1.25 test half | **$0.89** (997 trades) |
+
+Sweeping 840 rules (side, entry window, price band, take-profit, taker/maker entry and exit)
+over 5 separate periods: none profitable in all 5; the most robust are favorites at 80–92¢
+at about break-even. Returns rise with price (10–20¢: $0.80 ... 80–92¢: $0.96): cheap sides
+are the most overpriced. A take-profit raises the win rate but not the return.
+
 ## Combo (parlay) system — the main strategy
 
 A combo multiplies its legs, so a small edge per leg becomes a big edge on the

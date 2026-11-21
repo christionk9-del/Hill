@@ -31,7 +31,8 @@ STAKE = 1.0
 SCHEMA = """CREATE TABLE IF NOT EXISTS bets (
   id INTEGER PRIMARY KEY, ts REAL, strategy TEXT, series TEXT, ticker TEXT, side TEXT,
   price REAL, contracts INTEGER, fee REAL, ask_size REAL, fair REAL, tau REAL, spot REAL, strike REAL,
-  spot_age REAL, still_there INTEGER, result TEXT, payout REAL, UNIQUE(strategy, ticker));
+  spot_age REAL, still_there INTEGER, result TEXT, payout REAL,
+  tp_target REAL, exit_price REAL, exit_ts REAL, exit_fee REAL, UNIQUE(strategy, ticker));
 CREATE TABLE IF NOT EXISTS heartbeat (ts REAL, markets INTEGER, bets INTEGER, note TEXT);"""
 
 
@@ -100,10 +101,14 @@ class Feed:
             self._sig_ts[coin] = now
 
 
+TAKE_PROFIT = {"user_down_2_3m_tp20": 0.20}   # strategy -> take-profit fraction (others hold)
+
+
 def strategies(m, series, now, feed):
     """Yield (strategy, side, fair) decisions for one market snapshot."""
     close = datetime.fromisoformat(m["close_time"].replace("Z", "+00:00")).timestamp()
     tau = (close - now) / 60
+    since_open = now - (close - 900)
     if tau <= 0.25:
         return
     ya, na = f(m, "yes_ask_dollars"), f(m, "no_ask_dollars")
@@ -129,6 +134,12 @@ def strategies(m, series, now, feed):
             yield "longshot_10c", side, fair
         if side == "yes" and 13 <= tau <= 14:
             yield "baseline_yes", side, fair
+        # BTC-only rules from the take-profit backtest (kalshi_bot/updown_tp.py)
+        if series == "KXBTC15M" and 0.20 <= ask <= 0.35:
+            if side == "no" and 120 <= since_open <= 180:
+                yield "user_down_2_3m_tp20", side, fair
+            if 0 <= since_open <= 45:
+                yield ("fade_1st_min_down" if side == "no" else "fade_1st_min_up"), side, fair
 
 
 def run(hours=3.0, db="data/forward.sqlite", cycle=2.0, log=print):
@@ -136,11 +147,16 @@ def run(hours=3.0, db="data/forward.sqlite", cycle=2.0, log=print):
     os.makedirs("data", exist_ok=True)
     con = sqlite3.connect(db)
     con.executescript(SCHEMA)
+    have = {r[1] for r in con.execute("PRAGMA table_info(bets)")}
+    for col, typ in (("tp_target", "REAL"), ("exit_price", "REAL"), ("exit_ts", "REAL"), ("exit_fee", "REAL")):
+        if col not in have:
+            con.execute(f"ALTER TABLE bets ADD COLUMN {col} {typ}")
     feed, series_all = Feed(), list(CRYPTO) + OTHER
     end, markets, last_discover, pending = time.time() + hours * 3600, {}, 0, {}
     while time.time() < end:
         now = time.time()
-        if now - last_discover > 30:
+        near_open = (now % 900) < 50          # windows open on the quarter hour
+        if now - last_discover > 30 or near_open:
             markets = {m["ticker"]: m for m in feed.current_markets(series_all)}
             last_discover = now
         with ThreadPoolExecutor(2) as ex:
@@ -168,13 +184,26 @@ def run(hours=3.0, db="data/forward.sqlite", cycle=2.0, log=print):
                 spot, st = feed.spot.get(coin, (None, None))
                 cur = con.execute(
                     "INSERT OR IGNORE INTO bets (ts,strategy,series,ticker,side,price,contracts,fee,ask_size,fair,tau,spot,strike,spot_age)"
-                    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)" if strat not in TAKE_PROFIT else
+                    "INSERT OR IGNORE INTO bets (ts,strategy,series,ticker,side,price,contracts,fee,ask_size,fair,tau,spot,strike,spot_age,tp_target)"
+                    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (now, strat, series, tk, side, ask, n, taker_fee(n, ask), size, fair,
                      (datetime.fromisoformat(m["close_time"].replace("Z", "+00:00")).timestamp() - now) / 60,
-                     spot, float(m["floor_strike"]), (now - st) if st else None))
+                     spot, float(m["floor_strike"]), (now - st) if st else None)
+                    + (() if strat not in TAKE_PROFIT else (round(ask * (1 + TAKE_PROFIT[strat]), 4),)))
                 if cur.rowcount:
                     pending[cur.lastrowid] = (tk, side, ask)
                     nb += 1
+        # take-profit exits: sell at our side's bid once it reaches the target
+        for bid_id, tk, side, n, target in con.execute(
+                "SELECT id, ticker, side, contracts, tp_target FROM bets WHERE tp_target IS NOT NULL "
+                "AND exit_price IS NULL AND result IS NULL").fetchall():
+            mm = q.get(tk)
+            bid = f(mm, f"{side}_bid_dollars") if mm else None
+            size = f(mm, f"{side}_bid_size_fp") or 0 if mm else 0
+            if bid is not None and bid >= target - 1e-9 and size >= n:
+                con.execute("UPDATE bets SET exit_price=?, exit_ts=?, exit_fee=? WHERE id=?",
+                            (bid, now, taker_fee(n, bid), bid_id))
         con.execute("INSERT INTO heartbeat VALUES (?,?,?,?)", (now, len(q), nb, ""))
         con.commit()
         settle(con, feed)
@@ -192,7 +221,8 @@ def settle(con, feed, final=False):
     for tk, m in q.items():
         res = m.get("result")
         if res in ("yes", "no"):
-            con.execute("UPDATE bets SET result=?, payout=CASE WHEN side=? THEN contracts ELSE 0 END "
+            con.execute("UPDATE bets SET result=?, payout=CASE WHEN exit_price IS NOT NULL "
+                        "THEN contracts*exit_price - exit_fee WHEN side=? THEN contracts ELSE 0 END "
                         "WHERE ticker=? AND result IS NULL", (res, res, tk))
     con.commit()
 

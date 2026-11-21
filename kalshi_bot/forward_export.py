@@ -11,7 +11,8 @@ from .forward import CRYPTO
 
 LABELS = {"model_edge_5": "Model edge ≥5%", "model_edge_10": "Model edge ≥10%",
           "late_favorite": "Late favorite (85–97¢)", "longshot_10c": "Longshot (≤10¢)",
-          "baseline_yes": "Baseline: buy YES"}
+          "baseline_yes": "Baseline: buy YES", "user_down_2_3m_tp20": "Your rule: DOWN 20–35¢ @2–3m, +20% TP",
+          "fade_1st_min_down": "First-minute fade: DOWN 20–35¢", "fade_1st_min_up": "First-minute fade: UP 20–35¢"}
 
 
 def export(db="data/forward.sqlite", out="data/forward_export.json"):
