@@ -89,11 +89,14 @@ class Engine:
         for s in self.strats:
             cands = find_edges(groups, s, self._cal_for(s), now)
             bank = self.L.bankroll(s["name"], s.get("bankroll", 1000.0))
+            # Cash constraint: money in open positions is not available for new ones.
+            cash = bank - self.L.open_exposure(s["name"])
             for c in cands:
                 if parse_iso(c["start_time"]) - now > timedelta(hours=s.get("max_hours_to_start", 24 * 30)):
                     continue
-                stake = stake_for(c, s, bank)
+                stake = min(stake_for(c, s, bank), round(cash, 2))
                 if stake >= s.get("min_stake", 1.0) and self.L.add_bet(s["name"], ts, c, stake):
+                    cash -= stake
                     n_bets += 1
             self.L.db.execute("INSERT INTO opps VALUES(?,?,?)", (ts, s["name"], json.dumps(cands[:60])))
         self._update_clv(groups, now)
@@ -148,10 +151,11 @@ class Engine:
             qs = groups.get(r["group_id"])
             if not qs or parse_iso(r["start_time"]) <= now:
                 continue
-            # CLV is measured against ONE common benchmark for every strategy (power devig,
-            # default weights, the bet venue itself excluded, no calibration) so arms are comparable
-            # and no strategy can grade its own homework.
-            fr = consensus(qs, CLV_BENCHMARK, DEFAULT_WEIGHTS, r["venue"])
+            # CLV is measured against ONE common benchmark for every strategy: the full closing
+            # consensus (power devig, default weights, ALL venues incl. the one you bought on, no
+            # calibration). Excluding the bought venue biases CLV upward, because you selected it
+            # precisely when its price disagreed (the negative control caught this).
+            fr = consensus(qs, CLV_BENCHMARK, DEFAULT_WEIGHTS, None)
             if fr and r["outcome"] in fr[0]:
                 cq = fr[0][r["outcome"]]
                 self.L.db.execute("UPDATE bets SET close_q=?, clv=? WHERE id=?", (cq, cq * r["price"] - 1, r["id"]))

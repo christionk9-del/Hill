@@ -48,13 +48,17 @@ stake = ⅕–¼ Kelly, capped at 2% of bankroll
 
 | Arm | Model EV | True EV | Lesson |
 |---|---|---|---|
-| `events_consensus_ev3` (bet venue excluded from its own fair line) | +9.8% | **+1.0%** | Winner's curse: the biggest gaps are partly errors in the *benchmark* |
-| `events_inclusive_ev3` (bet venue kept as one weighted signal) | +6.6% | **+4.2%** | Pre-registered fix: fewer, better bets |
-| `events_short_dated_apr` (≤14 days, APR ≥ 50%) | +5.6% | **+3.7%** | Capital turns over fast |
-| `events_consensus_calibrated` | +10.3% | −0.2% | Calibration on thin data didn't help (yet) |
-| `events_control_negative_ev` | −1.4% | −2.9% | The measuring stick works |
+| `events_consensus_ev3` (bet venue excluded from its own fair line) | +18.1% | **+2.9%** | Winner's curse: the biggest gaps are partly errors in the *benchmark* |
+| `events_inclusive_ev3` (bet venue kept as one weighted signal) | +8.9% | **+6.2%** | Pre-registered fix: fewer, better bets |
+| `events_short_dated_apr` (≤14 days, APR ≥ 50%) | +8.8% | **+6.4%** | Capital turns over fast |
+| `events_consensus_calibrated` | +19.3% | 0.0% | Calibration on thin data didn't help (yet) |
+| `events_control_negative_ev` | −0.3% | −1.2% | The measuring stick works |
 
-The venue scorecard correctly ranked the planted accurate venue first. These are *simulated* results that check the pipeline, not evidence about real markets. Only the live forward test is.
+The venue scorecard correctly ranked the planted accurate venue first.
+
+**Capital.** ROI is return per dollar *staked*. What you earn on your bankroll ≈ ROI × (365 ÷ hold days) × share of bankroll deployed. The engine enforces cash (you can't stake money already in open positions) and reports `Bankroll / yr` and `Deployed`. The demo's huge annualised figures come from a toy world with ~8-day contracts, unlimited liquidity and planted edges. Don't read them as forecasts.
+
+These are *simulated* results that check the pipeline, not evidence about real markets. Only the live forward test is.
 
 Sports arms (`01–03`, `99`) are retired and kept for the record.
 

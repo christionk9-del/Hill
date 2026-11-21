@@ -54,6 +54,27 @@ def bets_needed(edge: float, avg_price: float, z: float = 1.96) -> int:
     return int(math.ceil((z ** 2) * var / edge ** 2))
 
 
+def capital_stats(bets: list[dict], bankroll: float) -> dict:
+    """How hard the bankroll actually worked: average $ deployed, hold time, and
+    annualised return ON BANKROLL (not on turnover, which is what ROI measures)."""
+    from datetime import datetime
+    P = lambda s: datetime.fromisoformat(s.replace("Z", "+00:00"))
+    done = [b for b in bets if b["status"] == "settled" and b["settled_ts"]]
+    if len(done) < 2:
+        return {"avg_hold_days": None, "avg_deployed": None, "utilization": None, "ann_return": None, "days": None}
+    ev = sorted([(P(b["ts"]), b["stake"]) for b in done] + [(P(b["settled_ts"]), -b["stake"]) for b in done])
+    cur = area = 0.0
+    last = ev[0][0]
+    for t, d in ev:
+        area += cur * (t - last).total_seconds() / 86400
+        last, cur = t, cur + d
+    days = max((ev[-1][0] - ev[0][0]).total_seconds() / 86400, 1e-9)
+    pnl = sum(b["pnl"] for b in done)
+    return {"avg_hold_days": st.fmean((P(b["settled_ts"]) - P(b["ts"])).total_seconds() / 86400 for b in done),
+            "avg_deployed": area / days, "utilization": area / days / bankroll, "days": days,
+            "ann_return": (pnl / bankroll) * 365 / days}
+
+
 def summarize(bets: list[dict]) -> dict:
     settled = [b for b in bets if b["status"] == "settled"]
     openb = [b for b in bets if b["status"] == "open"]

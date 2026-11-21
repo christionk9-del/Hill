@@ -78,6 +78,9 @@ class Ledger:
                                c["domain"], None, None))
         return cur.rowcount > 0
 
+    def open_exposure(self, strategy: str) -> float:
+        return self.q("SELECT COALESCE(SUM(stake),0) s FROM bets WHERE strategy=? AND status='open'", (strategy,))[0]["s"]
+
     def bankroll(self, strategy: str, start: float) -> float:
         r = self.q("SELECT COALESCE(SUM(pnl),0) s FROM bets WHERE strategy=? AND status='settled'", (strategy,))
         return start + r[0]["s"]

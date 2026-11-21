@@ -161,12 +161,12 @@ $("#meta").textContent=`Generated ${D.generated} · ${D.scans.n} scans${D.scans.
 $("#mode").innerHTML=D.mode==="demo"?`<span class="badge demo">DEMO · synthetic market with planted edges</span>`:`<span class="badge">LIVE paper trading</span>`;
 
 // comparison table
-$("#cmp").innerHTML=`<thead><tr><th>Strategy</th><th class="num">Bets</th><th class="num">Settled</th><th class="num">ROI</th><th class="num">ROI 95% CI</th><th class="num">Avg CLV</th><th class="num">CLV t</th><th class="num">Beat close</th><th class="num">P&amp;L</th>${TRUTH?'<th class="num">True EV</th>':""}<th>Verdict</th></tr></thead><tbody>`+
+$("#cmp").innerHTML=`<thead><tr><th>Strategy</th><th class="num">Bets</th><th class="num">Settled</th><th class="num">ROI</th><th class="num">ROI 95% CI</th><th class="num">Avg CLV</th><th class="num">CLV t</th><th class="num">Beat close</th><th class="num">P&amp;L</th><th class="num" title="Return on bankroll, annualised (simple)">Bankroll / yr</th><th class="num" title="Average share of bankroll in open positions">Deployed</th>${TRUTH?'<th class="num">True EV</th>':""}<th>Verdict</th></tr></thead><tbody>`+
  strats.map(s=>{const m=s.summary;return `<tr><td><span class="sw" style="background:${colorOf(s.name)}"></span>${esc(s.name)}${s.control?' <span class="badge">control</span>':""}<div class="sub">#${s.hash}</div></td>
  <td class="num">${m.n_bets}</td><td class="num">${m.n_settled}</td><td class="num ${cls(m.roi)}">${pct(m.roi)}</td>
  <td class="num">${m.roi_ci[0]==null?"—":pct(m.roi_ci[0],1)+" … "+pct(m.roi_ci[1],1)}</td>
  <td class="num ${cls(m.clv)}">${pct(m.clv)}</td><td class="num">${num(m.clv_t)}</td><td class="num">${m.beat_close==null?"—":(m.beat_close*100).toFixed(0)+"%"}</td>
- <td class="num ${cls(m.pnl)}">${money(m.pnl)}</td>${TRUTH?`<td class="num ${cls(m.true_ev)}">${pct(m.true_ev)}</td>`:""}<td>${verdictBadge(m.verdict)}</td></tr>`}).join("")+`</tbody>`;
+ <td class="num ${cls(m.pnl)}">${money(m.pnl)}</td><td class="num ${cls(m.ann_return)}">${pct(m.ann_return,0)}</td><td class="num">${m.utilization==null?"—":(m.utilization*100).toFixed(0)+"%"}</td>${TRUTH?`<td class="num ${cls(m.true_ev)}">${pct(m.true_ev)}</td>`:""}<td>${verdictBadge(m.verdict)}</td></tr>`}).join("")+`</tbody>`;
 if(!strats.length)$("#cmp").innerHTML=`<tr><td class="empty">No strategies yet. Run a scan.</td></tr>`;
 
 // selectors
@@ -226,7 +226,7 @@ function renderStrategy(){
    ["Bets",m.n_bets,`${m.n_settled} settled · ${m.n_open} open`],
    ["Avg model EV",pct(m.avg_ev),m.true_ev!=null?`TRUE EV ${pct(m.true_ev)} (demo ground truth)`:`avg price ${num(m.avg_price,2)} · CLV/EV ${m.edge_capture==null?"—":(m.edge_capture*100).toFixed(0)+"%"}`],
    ["Brier score",m.brier==null?"—":m.brier.toFixed(4),m.brier_market==null?"":`vs ${m.brier_market.toFixed(4)} raw implied`],
-   ["Max drawdown",money(m.max_dd),`need ~${m.bets_needed} bets for ROI proof`]];
+   ["Bankroll return / yr",`<span class="${cls(m.ann_return)}">${pct(m.ann_return,0)}</span>`,m.avg_hold_days==null?"":`avg hold ${m.avg_hold_days.toFixed(1)}d · ${(m.utilization*100).toFixed(0)}% deployed · max DD ${money(m.max_dd)}`]];
   $("#kpis").innerHTML=k.map(([l,v,d])=>`<div class="card kpi"><div class="l">${l}</div><div class="v" style="${l==="Verdict"?"font-size:17px":""}">${v}</div><div class="d">${esc(d)}</div></div>`).join("");
   $("#bydom").innerHTML=`<thead><tr><th>Market</th><th class="num">Bets</th><th class="num">Settled</th><th class="num">ROI</th><th class="num">CLV</th><th class="num">CLV t</th><th class="num">P&amp;L</th></tr></thead><tbody>`+
     (Object.entries(s.by_domain).map(([d,v])=>`<tr><td>${esc(d)}</td><td class="num">${v.n_bets}</td><td class="num">${v.n_settled}</td><td class="num ${cls(v.roi)}">${pct(v.roi)}</td><td class="num ${cls(v.clv)}">${pct(v.clv)}</td><td class="num">${num(v.clv_t)}</td><td class="num ${cls(v.pnl)}">${money(v.pnl)}</td></tr>`).join("")||`<tr><td colspan="7" class="empty">No bets yet</td></tr>`)+`</tbody>`;

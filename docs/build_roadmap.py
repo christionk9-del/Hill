@@ -256,7 +256,7 @@ def build(out):
             "Legal basics: entity, privacy policy, terms, “not betting advice” disclaimers, 21+ / responsible-gambling messaging."]),
         ("Phase 1 · Lead-magnet launch (Weeks 2–8)", [
             "Flagship content: “I built my own +EV model instead of paying for a screen. Here is the code.” Video + thread + blog.",
-            "Weekly <b>Lab Notes</b>: the public ledger, CLV per arm, and one lesson (e.g. “why a 10% EV estimate was really 1%”).",
+            "Weekly <b>Lab Notes</b>: the public ledger, CLV per arm, and one lesson (e.g. “why an 18% EV estimate was really 3%”).",
             "Distribution: X/Twitter politics, forecasting and prediction-market communities, YouTube, relevant subreddits (follow each sub's self-promo rules), Discord partnerships, GitHub trending.",
             "Build cross-venue mappings for the 30 biggest political/geopolitical questions. Post the Kalshi vs Polymarket gaps weekly. It's novel, shareable content.",
             "KPI gate to exit Phase 1: <b>1,000 emails</b>, ≥ 35% landing opt-in, ≥ 40% newsletter open rate."]),
@@ -306,15 +306,15 @@ def build(out):
               "<b>Pre-registration posts.</b> “Here is the hypothesis, the rules, and the hash. Check back in 8 weeks.”",
               "<b>Negative control.</b> Show the deliberately −EV arm losing. It proves the measuring stick works.",
               "<b>CLV before ROI.</b> Teach that ROI needs thousands of bets (≈ 10,000 at a 2% edge) while CLV converges about 10× faster. But CLV measured against the same venues you used to pick the bet can mislead, so pair it with the venue scorecard.",
-              "<b>Winner's curse.</b> The demo's first event model claimed ~10% EV that was really ~1%. Show the fix (keep the bet venue in the consensus) and its effect. It's a rare, honest story.",
+              "<b>Winner's curse.</b> The demo's first event model claimed ~18% EV that was really ~3%. Show the fix (keep the bet venue in the consensus) and its effect. It's a rare, honest story.",
               "<b>Devig tournament.</b> Publish which method wins on your data. It's a recurring, data-driven post.",
               "<b>Event markets.</b> Weekly Kalshi vs Polymarket vs Manifold gaps on elections and geopolitics. Few others publish this systematically.",
               "<b>Post-mortems.</b> When an arm is REJECTED, write it up. Honest losses earn more trust than cherry-picked wins.",
           ]) + [Spacer(1, 6),
           callout("Synthetic forward test (seed 7, 45 days, events only). The first event arm (bet venue excluded from its own fair line) "
-                  "claimed <b>+9.8% model EV</b> but had <b>+1.0% true EV</b>: a winner's curse. The pre-registered fix "
-                  "(<b>events_inclusive_ev3</b>: the bet venue stays in as one weighted signal) cut model EV to 6.6% and raised "
-                  "<b>true EV to +4.2%</b>. The short-dated APR arm reached +3.7%, the negative control lost, and the venue scorecard "
+                  "claimed <b>+18% model EV</b> but had <b>+2.9% true EV</b>: a winner's curse. The pre-registered fix "
+                  "(<b>events_inclusive_ev3</b>: the bet venue stays in as one weighted signal) cut model EV to 8.9% and raised "
+                  "<b>true EV to +6.2%</b>. The short-dated APR arm reached +6.4%, the negative control lost (and caught a biased CLV benchmark, since fixed), and the venue scorecard "
                   "correctly ranked the planted accurate exchange first. The demo's numbers come from a simulated world. Real "
                   "evidence only comes from the live forward test.",
                   "EVIDENCE FROM THE BUILT-IN DEMO")]

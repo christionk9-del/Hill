@@ -8,7 +8,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 
 from .ledger import Ledger
-from .stats import calibration_table, log_loss, mean_ci, summarize
+from .stats import capital_stats, calibration_table, log_loss, mean_ci, summarize
 
 
 def _clean(x):
@@ -76,6 +76,7 @@ def calibration(L: Ledger, method: str = "power") -> dict:
 def strategy_report(L: Ledger, s: dict) -> dict:
     bets = [dict(b) for b in L.q("SELECT * FROM bets WHERE strategy=? ORDER BY ts", (s["name"],))]
     summ = summarize(bets)
+    summ.update(capital_stats(bets, s["config"].get("bankroll", 1000.0)))
     curve, run = [], 0.0
     for b in sorted([b for b in bets if b["status"] == "settled"], key=lambda b: (b["settled_ts"], b["id"])):
         run += b["pnl"]
