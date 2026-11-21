@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 import json
 import os
 import re
@@ -68,12 +69,16 @@ def parse_iso(s: str) -> datetime:
 def http_json(url: str, params: dict | None = None, timeout: int = 20, retries: int = 3):
     if params:
         url = f"{url}?{urllib.parse.urlencode(params, doseq=True)}"
-    req = urllib.request.Request(url, headers={"User-Agent": "edgelab/0.1", "Accept": "application/json"})
+    req = urllib.request.Request(url, headers={"User-Agent": "edgelab/0.1", "Accept": "application/json",
+                                               "Accept-Encoding": "gzip"})
     last = None
     for i in range(retries):
         try:
             with urllib.request.urlopen(req, timeout=timeout) as r:
-                return json.loads(r.read().decode())
+                raw = r.read()
+                if r.headers.get("Content-Encoding") == "gzip":
+                    raw = gzip.decompress(raw)
+                return json.loads(raw.decode())
         except Exception as e:  # network hiccup / rate-limit: back off
             last = e
             time.sleep(1.5 * (i + 1))

@@ -16,12 +16,14 @@ python3 -m edgelab match                                 # suggest Kalshi/Polyma
 #   review each pair (same question? same resolution rules & date?) and copy the good ones into mappings.json
 python3 -m edgelab scan --every 900                      # live paper trading every 15 min (+ dashboard.html)
 python3 -m edgelab report                                # verdicts, venue scorecard, devig tournament
-python3 -m unittest discover -s tests -t .               # 26 tests
+python3 -m unittest discover -s tests -t .               # 32 tests
 ```
 
 ## Open EV Finder (Kalshi scan)
 
 `python3 .claude/skills/open-ev-finder/scripts/open_ev_finder.py` scans every open Kalshi market (~23k events) and lists the **top 5 +EV contracts per category**, with sports limited to this weekend's games, plus any true arbitrage. Fair prices come from Kalshi's own internal consistency, fees and depth included. It's also a Claude skill (`.claude/skills/open-ev-finder`, zipped in `docs/open-ev-finder-skill.zip`). Example output: `reports/`.
+
+`arb_scanner.py` (same folder) looks for **guaranteed-profit arbs** between Kalshi (which also covers Robinhood event contracts), Polymarket and US sportsbooks, fees included. It flags rule mismatches and rejects look-alike questions.
 
 ## Live forward tests
 

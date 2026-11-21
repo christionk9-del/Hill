@@ -1,3 +1,4 @@
+import sys
 import math
 import os
 import tempfile
@@ -304,3 +305,68 @@ class TestOpenEVFinder(unittest.TestCase):
         self.assertEqual((a.isoformat(), b.isoformat()), ("2026-11-21T05:00:00+00:00", "2026-11-23T05:00:00+00:00"))
         a2, _ = self.m.weekend_window(datetime(2026, 11, 18, tzinfo=timezone.utc), "America/New_York")  # Wednesday
         self.assertEqual(a2.date().isoformat(), "2026-11-21")
+
+
+class TestArbScanner(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util
+        d = ".claude/skills/open-ev-finder/scripts"
+        sys.path.insert(0, d)
+        spec = importlib.util.spec_from_file_location("arb", f"{d}/arb_scanner.py")
+        cls.a = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.a)
+
+    def _kalshi_game(self, now, legs, series="KXNBAGAME"):
+        exp = (now + timedelta(hours=6)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return {"series_ticker": series, "mutually_exclusive": True, "title": "Boston vs Golden State",
+                "markets": [{"ticker": f"T-{n}", "status": "active", "yes_sub_title": n, "yes_bid_dollars": b,
+                             "yes_ask_dollars": a, "yes_ask_size_fp": 500, "yes_bid_size_fp": 500,
+                             "expected_expiration_time": exp} for n, b, a in legs]}
+
+    def _odds(self, now, outcomes):
+        return {"basketball_nba": [{"home_team": "Golden State Warriors", "away_team": "Boston Celtics",
+                                    "commence_time": (now + timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                                    "bookmakers": [{"key": "draftkings", "title": "DraftKings",
+                                                    "markets": [{"key": "h2h", "outcomes": outcomes}]}]}]}
+
+    def test_detects_kalshi_vs_book_arb(self):
+        now = datetime(2026, 11, 21, 15, tzinfo=timezone.utc)
+        ev = self._kalshi_game(now, [("Boston", "0.40", "0.42"), ("Golden State", "0.56", "0.58")])
+        odds = self._odds(now, [{"name": "Golden State Warriors", "price": 1.80}, {"name": "Boston Celtics", "price": 2.00}])
+        res, meta = self.a.sports_arbs([ev], now, 100, 3, odds=odds)
+        self.assertEqual(meta["matched"], 1)
+        r = res[0]
+        self.assertLess(r["total_cost"], 1)  # Kalshi Boston ~43c + DK Warriors 1/1.8=55.6c
+        self.assertEqual({l["venue"] for l in r["legs"]}, {"Kalshi", "DraftKings"})
+
+    def test_no_false_arb_on_fair_prices(self):
+        now = datetime(2026, 11, 21, 15, tzinfo=timezone.utc)
+        ev = self._kalshi_game(now, [("Boston", "0.44", "0.46"), ("Golden State", "0.54", "0.56")])
+        odds = self._odds(now, [{"name": "Golden State Warriors", "price": 1.74}, {"name": "Boston Celtics", "price": 2.10}])
+        res, _ = self.a.sports_arbs([ev], now, 100, 3, odds=odds)
+        self.assertGreaterEqual(res[0]["total_cost"], 1)
+
+    def test_three_way_vs_two_way_not_mixed(self):
+        now = datetime(2026, 11, 21, 15, tzinfo=timezone.utc)
+        ev = self._kalshi_game(now, [("Boston", "0.30", "0.32"), ("Golden State", "0.40", "0.42"), ("Tie", "0.20", "0.22")])
+        odds = self._odds(now, [{"name": "Golden State Warriors", "price": 1.80}, {"name": "Boston Celtics", "price": 2.00}])
+        res, _ = self.a.sports_arbs([ev], now, 100, 3, odds=odds)
+        self.assertEqual(res, [])
+
+    def test_team_matching(self):
+        tm = self.a.team_match
+        self.assertTrue(tm("Los Angeles L", "Los Angeles Lakers"))
+        self.assertTrue(tm("Colorado St.", "Colorado State Rams"))
+        self.assertFalse(tm("Los Angeles C", "Los Angeles Lakers"))
+
+    def test_polarity_and_hard_words(self):
+        self.assertEqual(self.a.polarity("Will Vox receive at least 16%?") * self.a.polarity("Vox less than 16%?"), -1)
+        kt = self.a.toks("Will Darian Mensah be selected as a finalist for the 2026 Heisman Trophy?")
+        pt = self.a.toks("Will Darian Mensah win the 2026 Heisman Trophy?")
+        self.assertTrue((kt ^ pt) & self.a.HARD)
+        self.assertEqual(self.a.toks("be the Democratic Presidential nominee in 2028"),
+                         self.a.toks("win the 2028 Democratic presidential nomination"))
+
+    def test_partitions(self):
+        self.assertEqual(len(list(self.a.partitions(["H", "D", "A"]))), 5)
