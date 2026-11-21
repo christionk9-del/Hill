@@ -85,6 +85,33 @@ whether the flagged legs beat their cost. Player props are not matched (sharp bo
   This is a speed game: the edge exists only if your price feed and orders beat other
   bots by a few seconds. One day of data, so treat it as a lead, not proof.
 
+### BTC speed bot (`kalshi_bot/speedbot.py`)
+
+The one lead the backtests left: Kalshi's BTC 15-minute quotes lag Bitcoin by a few
+seconds. The bot streams Bitcoin from Coinbase, prices the contract the way it actually
+settles (60-second average of CF Benchmarks' BRTI before close vs before open), and buys
+the underpriced side when fair value beats the ask plus fee by 10 points or more.
+
+- One bet per 15-minute window, $1 by default, prices 10–90¢, 1–14 minutes left.
+- Skips if the BTC price is over 1 s old or the Kalshi book over 1.5 s old.
+- Kalshi book: WebSocket order book with your API key (fast); REST polling twice a second
+  without one (slower, for testing).
+- Live mode sends fill-or-kill orders only, capped by the daily budget and a daily loss limit.
+
+```bash
+pip install -r requirements.txt
+export KALSHI_KEY_ID=...  KALSHI_PRIVATE_KEY_PATH=~/kalshi.pem   # enables the fast WebSocket book
+nohup ./run_speedbot.sh &                  # paper, restarts itself; log in data/speedbot.log
+python -m kalshi_bot speedbot-report       # P&L with 90% range, latency, model calibration
+./run_speedbot.sh --live                   # only after ~500 paper windows hold above $1.05 per $1
+```
+
+Try the order flow on Kalshi's demo exchange first:
+`KALSHI_BASE_URL=https://demo-api.kalshi.co/trade-api/v2`. The WebSocket message format
+and the `time_in_force` order field follow Kalshi's docs but have not been run against the
+real API from the build environment, which has no Kalshi key. Coinbase stands in for BRTI,
+so a gap between them shows up as model error; check the calibration lines in the report.
+
 ### Take-profit rules on BTC up/down (`kalshi_bot/updown_tp.py`)
 
 Entries pay the real ask, exits get the real bid, taker fee on both legs.

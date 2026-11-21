@@ -47,10 +47,14 @@ class KalshiClient:
 
     # ---------- low level ----------
     def _headers(self, method: str, path: str) -> dict:
+        return self.signed_headers(method, self._path_prefix + path)
+
+    def signed_headers(self, method: str, full_path: str) -> dict:
+        """Auth headers for any Kalshi path, e.g. '/trade-api/ws/v2' for the WebSocket."""
         if not self._key:
             return {}
         ts = str(int(time.time() * 1000))
-        msg = (ts + method.upper() + self._path_prefix + path).encode()
+        msg = (ts + method.upper() + full_path).encode()
         sig = self._key.sign(
             msg,
             padding.PSS(mgf=padding.MGF1(hashes.SHA256()), salt_length=padding.PSS.DIGEST_LENGTH),
@@ -132,7 +136,7 @@ class KalshiClient:
     def positions(self):
         return self._req("GET", "/portfolio/positions", params={"limit": 1000})
 
-    def buy_limit(self, ticker: str, side: str, count: int, price_c: int):
+    def buy_limit(self, ticker: str, side: str, count: int, price_c: int, time_in_force: str | None = None):
         assert side in ("yes", "no")
         body = {
             "ticker": ticker,
@@ -143,4 +147,6 @@ class KalshiClient:
             f"{side}_price": int(price_c),
             "client_order_id": str(uuid.uuid4()),
         }
+        if time_in_force:   # "fill_or_kill" / "immediate_or_cancel": never leave a resting order
+            body["time_in_force"] = time_in_force
         return self._req("POST", "/portfolio/orders", json=body)

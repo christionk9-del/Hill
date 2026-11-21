@@ -211,6 +211,25 @@ def cmd_forward_report(a):
     forward.report()
 
 
+def cmd_speedbot(a):
+    import asyncio
+    from .speedbot import SpeedBot, SpeedConfig
+    if a.live and not CONFIG.key_id:
+        sys.exit("Live mode needs KALSHI_KEY_ID and KALSHI_PRIVATE_KEY_PATH.")
+    cfg = SpeedConfig(min_edge=a.edge, stake=a.stake, live=a.live)
+    try:
+        asyncio.run(SpeedBot(cfg).run(book_mode=a.book, minutes=a.minutes))
+    except (TimeoutError, asyncio.TimeoutError):
+        print(f"[stop] ran for {a.minutes} minutes")
+    except KeyboardInterrupt:
+        print("[stop] interrupted")
+
+
+def cmd_speedbot_report(a):
+    from .speedbot import report
+    report()
+
+
 def main():
     p = argparse.ArgumentParser(prog="kalshi_bot")
     sp = p.add_subparsers(dest="cmd", required=True)
@@ -244,6 +263,11 @@ def main():
     bt.add_argument("--download", action="store_true"); bt.add_argument("--data-dir", default="data/hf")
     bt.set_defaults(f=cmd_backtest)
     pl = sp.add_parser("pnl", help="P&L replay of the $5/day plan on real trades")
+    sb = sp.add_parser("speedbot", help="streaming BTC 15-min speed bot (paper unless --live)")
+    sb.add_argument("--live", action="store_true"); sb.add_argument("--edge", type=float, default=0.10)
+    sb.add_argument("--stake", type=float, default=1.0); sb.add_argument("--minutes", type=float, default=None)
+    sb.add_argument("--book", choices=["auto", "ws", "rest"], default="auto"); sb.set_defaults(f=cmd_speedbot)
+    sp.add_parser("speedbot-report").set_defaults(f=cmd_speedbot_report)
     fw = sp.add_parser("forward", help="live paper forward test on all 15-min up/down markets")
     fw.add_argument("--hours", type=float, default=3.0); fw.set_defaults(f=cmd_forward)
     sp.add_parser("forward-report").set_defaults(f=cmd_forward_report)
