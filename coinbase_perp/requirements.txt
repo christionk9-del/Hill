@@ -1,0 +1,5 @@
+requests>=2.28
+pandas>=2.0
+PyJWT>=2.8
+cryptography>=42
+tzdata>=2024.1

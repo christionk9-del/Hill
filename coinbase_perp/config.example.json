@@ -1,0 +1,20 @@
+{
+  "dry_run": true,
+  "preset": "lab_baseline",
+  "strategy": {},
+  "entry_mode": "resting",
+  "markets": [
+    {"product_id": "BIP-20DEC30-CDE", "signal_product": "BTC-USD", "risk_pct": 0.5, "max_contracts": 20, "max_leverage": 3.0, "enabled": false},
+    {"product_id": "ETP-20DEC30-CDE", "signal_product": "ETH-USD", "risk_pct": 0.5, "max_contracts": 20, "max_leverage": 3.0, "enabled": true}
+  ],
+  "daily_loss_limit_pct": 3.0,
+  "stop_limit_buffer_pct": 0.5,
+  "entry_limit_buffer_pct": 0.15,
+  "max_chase_R": 0.5,
+  "poll_seconds": 5,
+  "paper_equity": 10000,
+  "api_key_name_env": "COINBASE_API_KEY_NAME",
+  "api_secret_env": "COINBASE_API_SECRET",
+  "log_dir": "logs",
+  "stop_file": "STOP"
+}

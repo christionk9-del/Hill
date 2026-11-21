@@ -26,12 +26,13 @@ class Params:
     n: int = 24              # entry channel, bars
     exit_n: int = 24         # exit channel, bars
     stop_atr: float = 1.0    # initial stop, ATR multiples
-    trail_atr: float = 2.0   # trailing stop, ATR multiples
+    trail_atr: Optional[float] = 2.0   # trailing stop, ATR multiples (None = channel only)
     max_trades: int = 3
     first_bar: int = 1       # first bar index allowed for entries (0 = 9:30 bar)
     last_bar: int = 48       # entries only on bars with index < last_bar (48 = 13:30 bar)
     atr_len: int = 14
     tick: float = 0.25
+    bars_per_day: int = BARS_PER_DAY
 
 
 @dataclass
@@ -152,12 +153,14 @@ class DonchianEngine:
             ps = None
         self._push(h, l, c)
         if ps is not None:
-            if self.idx >= BARS_PER_DAY - 1:
+            if self.idx >= self.p.bars_per_day - 1:
                 ev.append(self._exit(c, "close"))
             else:
                 chan = list(self.lows if ps.side > 0 else self.highs)[-self.p.exit_n:]
-                trail = c - ps.side * self.p.trail_atr * self.atr
-                new = max(ps.stop, min(chan), trail) if ps.side > 0 else min(ps.stop, max(chan), trail)
+                lv = [min(chan) if ps.side > 0 else max(chan)]
+                if self.p.trail_atr:                      # None / 0 = channel exit only
+                    lv.append(c - ps.side * self.p.trail_atr * self.atr)
+                new = max([ps.stop] + lv) if ps.side > 0 else min([ps.stop] + lv)
                 if new != ps.stop:
                     ps.stop = new
                     ev.append(Event("stop_moved", ps.side, c, new))

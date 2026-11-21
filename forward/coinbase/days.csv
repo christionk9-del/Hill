@@ -1,0 +1,17 @@
+date,market,rules,pnl,fees,trades,model_R,equity,leftover
+2026-11-17,BTC,forward_test,-5.18,21.5,3,0.57,9994.82,False
+2026-11-17,BTC,lab_baseline,13.09,1.79,1,0.354,10013.09,False
+2026-11-17,ETH,forward_test,17.48,17.3,3,0.903,10017.48,False
+2026-11-17,ETH,lab_baseline,18.68,1.72,1,0.443,10018.68,False
+2026-11-18,BTC,forward_test,6.73,13.92,2,0.593,10001.55,False
+2026-11-18,BTC,lab_baseline,-23.57,4.55,2,-0.287,9989.52,False
+2026-11-18,ETH,forward_test,-48.22,14.5,3,-0.522,9969.26,False
+2026-11-18,ETH,lab_baseline,-44.74,1.55,1,-0.873,9973.94,False
+2026-11-19,BTC,forward_test,-161.08,16.9,3,-2.813,9840.47,False
+2026-11-19,BTC,lab_baseline,-99.49,3.54,2,-2.0,9890.03,False
+2026-11-19,ETH,forward_test,-138.71,13.13,3,-2.426,9830.55,False
+2026-11-19,ETH,lab_baseline,-51.5,1.44,1,-1.0,9922.44,False
+2026-11-20,BTC,forward_test,181.05,14.76,3,4.42,10021.52,False
+2026-11-20,BTC,lab_baseline,261.6,1.92,1,5.365,10151.63,False
+2026-11-20,ETH,forward_test,870.02,9.86,2,18.197,10700.57,False
+2026-11-20,ETH,lab_baseline,343.99,1.6,1,7.216,10266.43,False

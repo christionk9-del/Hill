@@ -1,0 +1,20 @@
+{
+ "settings": {
+  "fee_bps": 2.0,
+  "slip_bps": 1.0,
+  "risk_pct": 0.5,
+  "start": "2026-11-17"
+ },
+ "accounts": {
+  "BTC/forward_test": 10021.52,
+  "BTC/lab_baseline": 10151.63,
+  "ETH/forward_test": 10700.57,
+  "ETH/lab_baseline": 10266.43
+ },
+ "done": [
+  "2026-11-17",
+  "2026-11-18",
+  "2026-11-19",
+  "2026-11-20"
+ ]
+}

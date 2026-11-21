@@ -5,3 +5,6 @@ logs/
 STOP
 forward/logs/
 bear/work/
+coinbase_perp/config.json
+coinbase_perp/logs/
+coinbase_perp/STOP
