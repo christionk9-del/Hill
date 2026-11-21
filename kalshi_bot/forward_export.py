@@ -49,5 +49,38 @@ def export(db="data/forward.sqlite", out="data/forward_export.json"):
     return len(rows), out
 
 
+
+
+def export_speedbot(db="data/speedbot.sqlite", out="data/speedbot_export.json"):
+    """Speed bot bets plus model-calibration snapshots (only windows that have settled)."""
+    con = sqlite3.connect(db)
+    bets = []
+    for (ts, mode, tk, side, ask, n, fee, fair, edge, tau, sa, ba, held, res, payout, filled) in con.execute(
+            "SELECT ts, mode, ticker, side, ask, contracts, fee, fair, edge, tau, spot_age, book_age, quote_held, "
+            "result, payout, filled FROM bets WHERE filled > 0 ORDER BY ts"):
+        cost = round(ask * n + fee, 4)
+        done = res in ("yes", "no")
+        bets.append({"time": datetime.fromtimestamp(ts, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "mode": mode,
+                     "ticker": tk, "side": side.upper(), "price": ask, "contracts": n, "cost": cost,
+                     "model_fair": round(fair, 4), "edge": round(edge, 4), "minutes_left": round(tau, 2),
+                     "btc_price_age_s": round(sa, 3), "book_age_s": round(ba, 3), "quote_held": held,
+                     "status": "settled" if done else "open", "won": (1 if payout else 0) if done else None,
+                     "pnl": round(payout - cost, 4) if done else None})
+    cal = [{"ticker": tk, "minutes_left": round(tau, 2), "model_yes": round(f, 4),
+            "kalshi_yes_ask": ya, "yes_won": int(r == "yes")}
+           for tk, tau, f, ya, r in con.execute(
+               "SELECT s.ticker, s.tau, s.fair_yes, s.yes_ask, w.result FROM snaps s JOIN windows w USING(ticker) "
+               "WHERE s.tau >= 1 AND w.result IN ('yes','no')")]
+    snaps = con.execute("SELECT count(*), count(DISTINCT ticker), min(ts), max(ts) FROM snaps").fetchone()
+    with open(__file__) as fh:
+        code = fh.read()
+    meta = [{"label": "forward_export.py", "value": code, "type": "code", "lang": "python"},
+            {"label": "Input", "value": "data/speedbot.sqlite (kalshi_bot/speedbot.py, paper mode)"},
+            {"label": "Windows watched", "value": str(snaps[1])}]
+    json.dump({"rows": bets, "meta": meta}, open(out, "w"))
+    json.dump({"rows": cal, "meta": meta[:2]}, open(out.replace(".json", "_calibration.json"), "w"))
+    return len(bets), len(cal), snaps[1]
+
+
 if __name__ == "__main__":
-    print(export(*sys.argv[1:]))
+    print(export(), export_speedbot())
