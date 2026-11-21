@@ -56,3 +56,50 @@ Four days says nothing yet. Run it after each session; give it at least 40 sessi
 `config.example.json` uses `lab_baseline`, ETH enabled and BTC disabled, `dry_run: true`. Change any
 of that deliberately; the forward-test rules are one line (`"preset": "forward_test"`) if the paper
 test changes the picture.
+
+## 4. Perp vs futures, gold, and funding (`perp_compare.py`, output in `perp_compare_output.txt`)
+
+Same trades found once on 5-minute bars, then each instrument's costs applied. Perp costs: taker fee
+per side + 1 bps slippage per side, plus funding for the hours a trade is open.
+
+### US100 perp vs MNQ (no US100 perp history available: estimated from the Nasdaq-100 index itself,
+perp sized to the same notional as 1 MNQ, about $50k)
+
+| forward_test rules | before costs | 1 MNQ | US100 perp @ 2 bps | @ 3.5 bps | @ 4.5 bps |
+|---|---|---|---|---|---|
+| two-year backtest (1,078 trades) | +$22,225 | **+$19,811** | **-$10,015** | -$26,135 | -$36,882 |
+| paper forward test Nov 17-20 (12 trades) | -$138 | -$165 | -$526 | -$720 | -$849 |
+
+One MNQ round trip costs about $2.24. The same notional in a perp costs about $30 at 2 bps (6 bps
+round trip with slippage), so the perp pays roughly 13x more per trade. MNQ is the right vehicle.
+
+### Gold (Coinbase PAXG used as the gold price; Coinbase only has it from May 2025, and it is thin)
+
+| rules, last 12 months | before costs | gold perp @ 2 bps | as micro gold futures (MGC) |
+|---|---|---|---|
+| forward_test | +$5,963 | **-$8,290** | **+$3,777** |
+| lab_baseline | +$1,160 | -$1,726 | +$723 |
+
+Gold's 5-minute moves are small relative to its price, so the stops are tight and positions large:
+costs are even worse than on crypto. As a perp it fails; with futures costs the forward-test rules
+were positive over the last year, but the 6 months before that were negative (full 18 months: +$260),
+and PAXG's empty bars shrink the ATR, so treat this as weak. Real gold futures data is the next test.
+
+### Silver
+
+Not run. No silver price history was reachable here (Coinbase has none; Yahoo, Stooq and others are
+blocked; Dukascopy was allowed but rate-limited the request).
+
+### Funding
+
+Not the problem. The strategy is flat every night and the average trade is open about an hour, so
+funding is a rounding error next to trading fees:
+
+| | fees per year | funding at 10% APR | at 30% APR |
+|---|---|---|---|
+| BTC forward_test, $10k account, last 12 months | $6,718 | ~$0 | ~$0 |
+| US100 perp, two-year backtest | $32,240 | $137 | $411 (worst case, every trade paying: $1,859) |
+
+Trades are a mix of longs and shorts, so funding is partly received as well as paid. The cost that
+kills the perp versions is the fee (plus slippage) on every entry and exit, multiplied by tight
+stops that make positions large.

@@ -1,0 +1,134 @@
+[
+ {
+  "date": "2026-11-17",
+  "pnl": 480.78,
+  "trades": [
+   {
+    "side": "short",
+    "entry_time": "09:35",
+    "exit_time": "09:35",
+    "entry": 27149.15,
+    "exit": 27191.47,
+    "reason": "stop",
+    "model_pts": -42.33
+   },
+   {
+    "side": "short",
+    "entry_time": "09:50",
+    "exit_time": "09:50",
+    "entry": 27119.8,
+    "exit": 27171.45,
+    "reason": "stop",
+    "model_pts": -51.65
+   },
+   {
+    "side": "short",
+    "entry_time": "10:05",
+    "exit_time": "10:55",
+    "entry": 27115.7,
+    "exit": 26777.49,
+    "reason": "stop",
+    "model_pts": 338.22
+   }
+  ]
+ },
+ {
+  "date": "2026-11-18",
+  "pnl": -502.3,
+  "trades": [
+   {
+    "side": "long",
+    "entry_time": "10:00",
+    "exit_time": "10:00",
+    "entry": 27223.05,
+    "exit": 27132.38,
+    "reason": "stop",
+    "model_pts": -90.67
+   },
+   {
+    "side": "short",
+    "entry_time": "11:55",
+    "exit_time": "11:55",
+    "entry": 26849.77,
+    "exit": 26929.72,
+    "reason": "stop",
+    "model_pts": -79.95
+   },
+   {
+    "side": "long",
+    "entry_time": "12:25",
+    "exit_time": "12:50",
+    "entry": 27145.19,
+    "exit": 27067.21,
+    "reason": "stop",
+    "model_pts": -77.98
+   }
+  ]
+ },
+ {
+  "date": "2026-11-19",
+  "pnl": -581.91,
+  "trades": [
+   {
+    "side": "long",
+    "entry_time": "09:35",
+    "exit_time": "09:35",
+    "entry": 27731.43,
+    "exit": 27644.96,
+    "reason": "stop",
+    "model_pts": -86.47
+   },
+   {
+    "side": "long",
+    "entry_time": "09:50",
+    "exit_time": "09:50",
+    "entry": 27743.49,
+    "exit": 27647.17,
+    "reason": "stop",
+    "model_pts": -96.32
+   },
+   {
+    "side": "short",
+    "entry_time": "10:35",
+    "exit_time": "10:40",
+    "entry": 27016.88,
+    "exit": 27117.56,
+    "reason": "stop",
+    "model_pts": -100.68
+   }
+  ]
+ },
+ {
+  "date": "2026-11-20",
+  "pnl": 411.84,
+  "trades": [
+   {
+    "side": "short",
+    "entry_time": "09:35",
+    "exit_time": "09:35",
+    "entry": 26084.79,
+    "exit": 26186.59,
+    "reason": "stop",
+    "model_pts": -101.8
+   },
+   {
+    "side": "short",
+    "entry_time": "09:40",
+    "exit_time": "09:45",
+    "entry": 26084.79,
+    "exit": 26187.35,
+    "reason": "stop",
+    "model_pts": -102.56
+   },
+   {
+    "side": "short",
+    "entry_time": "10:15",
+    "exit_time": "13:55",
+    "entry": 26044.37,
+    "exit": 25621.13,
+    "reason": "stop",
+    "model_pts": 423.24
+   }
+  ]
+ }
+]
