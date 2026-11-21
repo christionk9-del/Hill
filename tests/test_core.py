@@ -260,3 +260,47 @@ class TestForwardMechanics(unittest.TestCase):
                 config_hash(s)
                 names.add(s["name"])
         self.assertEqual(len(names), 9)
+
+
+class TestOpenEVFinder(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("oef", ".claude/skills/open-ev-finder/scripts/open_ev_finder.py")
+        cls.m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.m)
+
+    def test_spread_weighted_devig_protects_liquid_prices(self):
+        p = self.m.spread_weighted_devig([0.60, 0.30, 0.30], [0.01, 0.10, 0.10])
+        self.assertAlmostEqual(sum(p), 1, 9)
+        self.assertGreater(p[0], 0.59)        # tight price barely moves
+        self.assertAlmostEqual(p[1], p[2], 9)  # wide ones absorb the overround equally
+
+    def test_isotonic(self):
+        self.assertEqual(self.m.isotonic_decreasing([0.5, 0.6, 0.2], [1, 1, 1])[:2], [0.55, 0.55])
+
+    def test_fee_rounds_up_per_order(self):
+        self.assertAlmostEqual(self.m.all_in_cost(0.05, 0.05), 0.06)         # 1 contract: 0.33c fee -> 1c
+        self.assertAlmostEqual(self.m.all_in_cost(0.50, 100), 0.50 + 3.5 / 200, 6)
+
+    def test_ladder_grouped_per_underlying(self):
+        mk = lambda t, k, b, a: {"ticker": t, "status": "active", "strike_type": "greater", "floor_strike": k,
+                                 "yes_bid_dollars": b, "yes_ask_dollars": a}
+        ev = {"markets": [mk("G-PLAYERA-1", 1, .40, .42), mk("G-PLAYERA-2", 2, .10, .12),
+                          mk("G-PLAYERB-1", 1, .70, .72), mk("G-PLAYERB-2", 2, .30, .32),
+                          mk("RAIN-SFO", 0, .5, .6), mk("RAIN-NYC", 0, .2, .3)]}
+        fair = self.m.fair_ladder(ev)
+        self.assertAlmostEqual(fair["G-PLAYERB-1"], 0.71, 6)   # not pooled with player A
+        self.assertNotIn("RAIN-SFO", fair)                     # shared threshold = not a ladder
+
+    def test_under_round_event_is_skipped(self):
+        mk = lambda t, b, a: {"ticker": t, "status": "active", "yes_bid_dollars": b, "yes_ask_dollars": a}
+        self.assertIsNone(self.m.fair_mutually_exclusive({"markets": [mk("A", .40, .42), mk("B", .45, .47)]}))
+        self.assertIsNotNone(self.m.fair_mutually_exclusive({"markets": [mk("A", .50, .54), mk("B", .48, .52)]}))
+
+    def test_weekend_window(self):
+        now = datetime(2026, 11, 21, 14, 0, tzinfo=timezone.utc)  # Saturday
+        a, b = self.m.weekend_window(now, "America/New_York")
+        self.assertEqual((a.isoformat(), b.isoformat()), ("2026-11-21T05:00:00+00:00", "2026-11-23T05:00:00+00:00"))
+        a2, _ = self.m.weekend_window(datetime(2026, 11, 18, tzinfo=timezone.utc), "America/New_York")  # Wednesday
+        self.assertEqual(a2.date().isoformat(), "2026-11-21")
