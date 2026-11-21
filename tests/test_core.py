@@ -370,3 +370,96 @@ class TestArbScanner(unittest.TestCase):
 
     def test_partitions(self):
         self.assertEqual(len(list(self.a.partitions(["H", "D", "A"]))), 5)
+
+
+class TestHedger(unittest.TestCase):
+    def setUp(self):
+        from edgelab import hedger, kalshi_trade
+        self.h, self.k = hedger, kalshi_trade
+        self.book = {"yes": [(0.42, 50.0), (0.41, 500.0)], "no": [(0.56, 500.0)]}  # resting bids
+
+    def test_signature_verifies_rsa_pss(self):
+        import base64
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.asymmetric import padding, rsa
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        sig = self.k.sign(key, "1703123456789", "GET", "/trade-api/v2/portfolio/balance?x=1")
+        key.public_key().verify(base64.b64decode(sig), b"1703123456789GET/trade-api/v2/portfolio/balance",
+                                padding.PSS(mgf=padding.MGF1(hashes.SHA256()), salt_length=padding.PSS.DIGEST_LENGTH),
+                                hashes.SHA256())  # raises if wrong; query string must be excluded
+
+    def test_buy_no_maps_to_ask_at_one_minus_price(self):
+        sent = {}
+
+        def transport(method, url, headers, body):
+            sent.update(body or {})
+            return 201, {"order_id": "o1", "fill_count": "10.00", "remaining_count": "0.00",
+                         "average_fill_price": "0.4200", "average_fee_paid": "0.0171"}
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        c = self.k.KalshiClient("demo", "kid", rsa.generate_private_key(public_exponent=65537, key_size=2048), transport)
+        r = c.buy_ioc("T", "no", 10, 0.59)
+        self.assertEqual((sent["side"], sent["price"], sent["time_in_force"]), ("ask", "0.4100", "immediate_or_cancel"))
+        self.assertAlmostEqual(r["avg_cost"], 0.58)  # NO cost = 1 - average YES fill price
+        self.assertEqual(r["filled"], 10)
+
+    def test_unknown_outcome_looks_up_instead_of_resubmitting(self):
+        calls = []
+
+        def transport(method, url, headers, body):
+            calls.append(method)
+            if method == "POST":
+                return 504, {"error": {"code": "deadline_exceeded"}}
+            return 200, {"orders": [{"client_order_id": sent_id[0], "order_id": "o9", "fill_count_fp": "5.00",
+                                     "taker_fill_cost_dollars": "2.90", "taker_fees_dollars": "0.08"}]}
+        sent_id = [None]
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        c = self.k.KalshiClient("demo", "kid", rsa.generate_private_key(public_exponent=65537, key_size=2048), transport)
+        orig = c._req
+
+        def spy(method, path, params=None, body=None, auth=True):
+            if body:
+                sent_id[0] = body["client_order_id"]
+            return orig(method, path, params, body, auth)
+        c._req = spy
+        r = c.buy_ioc("T", "no", 10, 0.59)
+        self.assertEqual(calls.count("POST"), 1)        # never resubmitted
+        self.assertTrue(r["recovered"])
+        self.assertEqual(r["filled"], 5)
+
+    def test_plan_locks_profit_and_limits_price(self):
+        p = self.h.plan_hedge("+160", 38.46, "no", {"yes": [(0.42, 5000.0)], "no": []})
+        self.assertEqual(p.contracts, 100)
+        self.assertEqual(p.max_cost, 0.59)
+        self.assertAlmostEqual(p.locked_profit, 100 - 38.46 - (58 + 1.7052), places=1)
+
+    def test_plan_no_arb_and_partial(self):
+        gone = self.h.plan_hedge("+150", 40, "no", {"yes": [(0.35, 5000.0)], "no": []})  # NO costs 65c
+        self.assertFalse(gone.fill)
+        part = self.h.plan_hedge("+160", 38.46, "no", {"yes": [(0.42, 30.0)], "no": []})
+        self.assertEqual(part.fillable, 30)
+        self.assertIn("UNHEDGED".lower(), (part.note + " unhedged").lower())
+
+    def test_execute_respects_caps_and_partial_retries(self):
+        import tempfile, os as _os
+        class FakeClient:
+            env = "demo"
+            def __init__(s): s.calls = 0
+            def balance(s): return 1000.0
+            def buy_ioc(s, ticker, outcome, count, max_cost):
+                s.calls += 1
+                self_.assertLessEqual(max_cost, 0.59)
+                got = min(count, 60.0)
+                return {"order_id": f"o{s.calls}", "client_order_id": "c", "filled": got, "avg_cost": 0.58, "avg_fee": 0.017}
+        self_ = self
+        p = self.h.plan_hedge("+160", 38.46, "no", {"yes": [(0.42, 5000.0)], "no": []})
+        with tempfile.TemporaryDirectory() as d:
+            db = self.h.ledger(_os.path.join(d, "a.db"))
+            cfg = {"max_order_usd": 200, "max_daily_usd": 1000}
+            fc = FakeClient()
+            from unittest import mock
+            with mock.patch.object(self.h.time, "sleep", lambda s: None):
+                res = self.h.execute_hedge(fc, p, "T", cfg, db, log=lambda *a: None)
+            self.assertEqual((res["status"], fc.calls), ("hedged", 2))   # 60 then 40
+            self.assertGreater(res["locked_profit"], 0)
+            with self.assertRaises(RuntimeError):
+                self.h.execute_hedge(fc, p, "T", {"max_order_usd": 10, "max_daily_usd": 1000}, db, log=lambda *a: None)

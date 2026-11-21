@@ -235,6 +235,99 @@ def _safe_fetch(src):
         return []
 
 
+HEDGE_SERIES = ["KXNFLGAME", "KXNFLTOTAL", "KXNFLSPREAD", "KXNCAAFGAME", "KXNCAAFTOTAL", "KXNCAAFSPREAD",
+                "KXNBAGAME", "KXNBATOTAL", "KXNBASPREAD", "KXNBAPTS", "KXNBAREB", "KXNBAAST", "KXNBA3PT",
+                "KXNCAAMBGAME", "KXNCAAMBTOTAL", "KXNCAAMBSPREAD", "KXNHLGAME", "KXNHLTOTAL", "KXNHLSPREAD",
+                "KXMLBGAME", "KXEPLGAME", "KXEPLTOTAL", "KXLALIGAGAME", "KXUCLGAME", "KXUFCFIGHT"]
+
+
+def cmd_hedge(a, cfg):
+    """Semi-automatic arbs: you place the sportsbook leg, this hedges on Kalshi."""
+    from .hedger import execute_hedge, ledger, plan_hedge
+    from .kalshi_trade import PUBLIC, KalshiClient, KalshiError, load_config
+    from .sources.base import http_json
+    kc = load_config(a.kalshi_config) if a.kalshi_config else load_config()
+    env = "prod" if getattr(a, "prod", False) else kc["env"]
+    pub = KalshiClient(env)
+
+    if a.hcmd == "find":
+        words = [w.lower() for w in a.words]
+        series = a.series.split(",") if a.series else HEDGE_SERIES
+        rows = []
+        for srs in series:
+            try:
+                evs = http_json(f"{PUBLIC}/events", {"series_ticker": srs, "status": "open", "with_nested_markets": "true", "limit": 200})
+            except Exception:
+                continue
+            for e in evs.get("events", []):
+                blob = (e.get("title", "") + " " + e.get("event_ticker", "")).lower()
+                if not all(w in blob for w in words):
+                    continue
+                for m in e.get("markets", []):
+                    if a.contains and a.contains.lower() not in (m.get("yes_sub_title") or "").lower():
+                        continue
+                    yb, ya = float(m.get("yes_bid_dollars") or 0), float(m.get("yes_ask_dollars") or 0)
+                    rows.append((e["title"], m.get("yes_sub_title"), m["ticker"], ya, 1 - yb if yb else None))
+        if not rows:
+            print("No open Kalshi markets matched. Try fewer words, team city names, or --series.")
+        for t, sub, tk, ya, na in rows:
+            print(f"{t[:48]:48} | {str(sub)[:34]:34} | YES {ya*100:4.0f}¢  NO {(na or 0)*100:4.0f}¢ | {tk}")
+        print("\nHedge = buy the side that WINS when your sportsbook bet LOSES "
+              "(book Over 6.5 -> Kalshi NO on 'Over 6.5'; book Team A -> Kalshi YES on Team B, or NO on Team A).")
+        return
+
+    if a.hcmd in ("plan", "place"):
+        ob = pub.orderbook(a.ticker)
+        mk = pub.market(a.ticker)
+        print(f"{mk.get('title') or a.ticker}  [{mk.get('yes_sub_title', '')}]  ({a.ticker})")
+        print(f"Rules: {(mk.get('rules_primary') or '')[:300]}")
+        plan = plan_hedge(a.book_odds, a.stake, a.buy, ob, a.min_profit, kc["fee_rate"], not a.fractional)
+        print("\n".join(plan.lines()))
+        if a.hcmd == "plan":
+            print("\n(dry run: nothing sent. Use `hedge place ... --live` after your sportsbook bet is CONFIRMED.)")
+            return
+        if not plan.max_cost or not plan.fill:
+            print("\nNot sending: no fill available at a price that locks your minimum. "
+                  "Re-run with a lower --min-profit (e.g. -0.01 to accept a 1% loss) or wait.")
+            return
+        if not a.live:
+            print("\n(dry run: add --live to send. Default env is", env, ")")
+            return
+        client = KalshiClient.from_config(kc, env)
+        print(f"\nENV={env.upper()}  Kalshi balance ${client.balance():,.2f}")
+        if input(f"Type HEDGE to buy up to {plan.contracts:g} {a.buy.upper()} at <= {plan.max_cost*100:.0f}¢ on {env.upper()}: ").strip() != "HEDGE":
+            print("Aborted.")
+            return
+        db = ledger(kc["ledger"])
+        try:
+            res = execute_hedge(client, plan, a.ticker, kc, db, a.note or "", a.book or "", a.book_odds)
+        except (RuntimeError, KalshiError) as e:
+            print(f"Not executed: {e}")
+            return
+        print(f"\nRESULT: {res['status'].upper()}  filled {res['filled']:g}/{res['target']:g}  cost ${res['kalshi_cost']:,.2f}")
+        if res["locked_profit"] is not None:
+            print(f"Locked profit: ${res['locked_profit']:,.2f}")
+        if res["unhedged_contracts"] > 0:
+            print(f"!! {res['unhedged_contracts']:g} contracts UNHEDGED. Re-run `hedge plan` for the remainder, "
+                  "or accept the open exposure.")
+        return
+
+    if a.hcmd == "balance":
+        client = KalshiClient.from_config(kc, env)
+        print(f"{env.upper()} balance: ${client.balance():,.2f}")
+        return
+
+    if a.hcmd == "log":
+        db = ledger(kc["ledger"])
+        rows = db.execute("SELECT * FROM arbs ORDER BY id DESC LIMIT 50").fetchall()
+        tot = sum(r["locked_profit"] or 0 for r in rows if r["status"] == "hedged")
+        for r in rows:
+            lp = "—" if r["locked_profit"] is None else f"${r['locked_profit']:,.2f}"
+            print(f"{r['ts'][:16]} {r['env']:4} {r['status']:8} {r['ticker']:32} {r['outcome']:3} {r['filled']:g}/{r['target']:g} "
+                  f"cost ${r['kalshi_cost']:,.2f} locked {lp}  {r['book'] or ''} {r['book_odds']} {r['description'] or ''}")
+        print(f"\nLocked profit across hedged arbs shown: ${tot:,.2f}")
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="edgelab", description="Empirical +EV model & forward-testing simulator")
     p.add_argument("--config", default="edgelab.toml")
@@ -273,8 +366,31 @@ def main(argv=None):
     m.add_argument("--threshold", type=float, default=0.6)
     m.add_argument("--out", default="mappings.candidates.json")
 
+    h = sub.add_parser("hedge", help="semi-auto arbs: you place the sportsbook leg, it hedges on Kalshi")
+    h.add_argument("--kalshi-config", help="default ~/.edgelab/kalshi.toml")
+    hs = h.add_subparsers(dest="hcmd", required=True)
+    hf = hs.add_parser("find", help="find the Kalshi market to hedge with")
+    hf.add_argument("words", nargs="+", help="e.g. philadelphia montreal")
+    hf.add_argument("--contains", help="filter outcome text, e.g. 'Over 6.5'")
+    hf.add_argument("--series", help="comma list of Kalshi series tickers")
+    for name in ("plan", "place"):
+        x = hs.add_parser(name, help="preview the hedge" if name == "plan" else "send the hedge (after your book bet is confirmed)")
+        x.add_argument("--ticker", required=True)
+        x.add_argument("--buy", choices=["yes", "no"], required=True, help="Kalshi side that wins when your book bet loses")
+        x.add_argument("--book-odds", required=True, help="odds you GOT at the sportsbook, e.g. +160 or 2.60")
+        x.add_argument("--stake", type=float, required=True, help="sportsbook stake in $")
+        x.add_argument("--min-profit", type=float, default=0.005, help="minimum locked profit as a fraction (default 0.5%%)")
+        x.add_argument("--fractional", action="store_true", help="size to 0.01 contracts instead of whole contracts")
+        x.add_argument("--book", help="sportsbook name (for the log)")
+        x.add_argument("--note", help="description for the log")
+        x.add_argument("--prod", action="store_true", help="use the REAL Kalshi exchange (default: config env, demo)")
+        x.add_argument("--live", action="store_true", help="actually send the order (place only)")
+    hb = hs.add_parser("balance")
+    hb.add_argument("--prod", action="store_true")
+    hs.add_parser("log", help="your hedged arbs and locked profit")
+
     a = p.parse_args(argv)
     cfg = load_config(a.config)
     if a.cmd == "ev":
         return cmd_ev(a)
-    return {"scan": cmd_scan, "demo": cmd_demo, "report": cmd_report, "dashboard": cmd_dashboard, "match": cmd_match, "export": cmd_export}[a.cmd](a, cfg)
+    return {"scan": cmd_scan, "demo": cmd_demo, "report": cmd_report, "dashboard": cmd_dashboard, "match": cmd_match, "export": cmd_export, "hedge": cmd_hedge}[a.cmd](a, cfg)

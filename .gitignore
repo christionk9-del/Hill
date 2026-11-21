@@ -8,3 +8,5 @@ dashboard_demo.html
 .env
 mappings.candidates.json
 data/
+*.pem
+kalshi.toml
