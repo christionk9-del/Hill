@@ -15,3 +15,16 @@ H2 06-08 UTC: 700 bets $0.997 (0.971-1.021)                                     
 H0 all hours: 5956 bets $0.984 (0.975-0.993)
 S1 speed rule, 8 tick days Apr-Sep, 1 s delay, edge >= 0.10: 218 bets $1.015 (0.873-1.163) -> FAIL
 Context: all Mar-Sep trades, takers $0.969 per $1, makers $1.005 per $1.
+
+N1 (written before scoring new data): NDX dip-put, OPEN trigger only, 0.75%, checks 9:35 and hourly :45 until 15:30,
+   ATM, settle at 4pm close. On days outside Oct 2024 - Feb 2026, the ATM put's average payoff must beat the ATM
+   call's (put/call > 1.0) with the 90% bootstrap range above 1.0.
+
+N2 (written before Kalshi prices were pulled; NDX moves on these days were already seen in N1): on Feb-Nov 2026
+   OPEN-trigger signal days, buy NO on the 4pm KXNASDAQ100U strike ~1% below the index at the real NO ask.
+   Pass: return per $1 > 1 with 90% bootstrap range above 1. (0%, 0.5%, 1.5% shown for context.)
+
+RESULTS (NDX dip-put mirror)
+N1 open trigger, Feb-Nov 2026: 64 days, put/call payoff 1.59 (90% 0.87-2.81) -> not proven (range includes 1)
+N2 Kalshi NO 1% below index, open trigger, Feb-Nov 2026: 39 bets $0.462 (0.14-0.89) -> FAIL
+   all Kalshi strikes 0-1.5% below, both triggers: $0.56-0.89 per $1 -> Kalshi prices post-dip downside richly
