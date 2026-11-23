@@ -85,6 +85,21 @@ whether the flagged legs beat their cost. Player props are not matched (sharp bo
   This is a speed game: the edge exists only if your price feed and orders beat other
   bots by a few seconds. One day of data, so treat it as a lead, not proof.
 
+### Search for a profitable up/down rule (Nov 2026)
+
+Rules were searched on Mar–Sep 2026 (103.6M Kalshi trades), required to hold in three
+separate periods, then tested once on a locked holdout (Sep 21 – Nov 22, 6,026 windows).
+Tests and results are written down in `docs/updown_preregistered.txt`.
+
+| Idea | Search periods | Locked test | Verdict |
+|---|---|---|---|
+| Overnight favorites (85–99¢, 05–08 UTC) | $1.04–1.09 in all 3 | $1.005 (0.98–1.03) | fail |
+| Speed rule (fair value, 1 s delay, ≥10 pts) | — | $1.015 (0.87–1.16), 8 tick days | fail |
+| ~2,400 price / time / momentum / hour rules | 75 passed all 3 | — | consistent with chance |
+
+Across every Mar–Sep trade, takers got $0.969 per $1 and makers $1.005: the money in these
+markets goes to resting orders (market making), which needs order book history to test.
+
 ### BTC speed bot (`kalshi_bot/speedbot.py`)
 
 The one lead the backtests left: Kalshi's BTC 15-minute quotes lag Bitcoin by a few

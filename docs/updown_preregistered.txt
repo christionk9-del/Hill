@@ -1,0 +1,17 @@
+Pre-registered holdout tests (written 2026-11-23 before the Sep 21 - Nov 22 holdout was scored)
+H1  ANY side, ask 0.85-0.99, 1-14 min left, UTC hours 05-08, first qualifying entry per window, hold
+H2  ANY side, ask 0.85-0.99, 1-14 min left, UTC hours 06-08
+H0  ANY side, ask 0.85-0.99, 1-14 min left, all hours (baseline)
+Pass: H1 return per $1 > 1.00 with 90% bootstrap range above 1.00.
+
+S1 (written before scoring): speed rule on Mar-Sep 2026 Kalshi BTC 15-min taker trades, 8 days with Coinbase ticks.
+   Fair = settlement-accurate fair_up (60 s averages) from Coinbase price `lat` seconds before the trade, sigma from
+   trailing 60 x 1-min Coinbase returns. Bet = first taker buy per window with edge >= 0.10 after fee, 1-14 min left,
+   price 0.10-0.90. Pass: at lat = 1 s, return per $1 > 1 with 90% bootstrap range above 1.
+
+RESULTS (scored once)
+H1 overnight favorites, holdout Sep 21 - Nov 22: 955 bets $1.005 (90% 0.983-1.026)  -> FAIL
+H2 06-08 UTC: 700 bets $0.997 (0.971-1.021)                                       -> FAIL
+H0 all hours: 5956 bets $0.984 (0.975-0.993)
+S1 speed rule, 8 tick days Apr-Sep, 1 s delay, edge >= 0.10: 218 bets $1.015 (0.873-1.163) -> FAIL
+Context: all Mar-Sep trades, takers $0.969 per $1, makers $1.005 per $1.
