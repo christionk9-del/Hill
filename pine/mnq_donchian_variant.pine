@@ -10,9 +10,12 @@
 //     the 24-bar channel low/high or close -/+ 2 x ATR, whichever is tighter. Never loosens.
 //   - Flat at the close of the 15:55 bar.
 //
-// Alerts: create ONE alert on this strategy with condition "Order fills only", message
-// {{strategy.order.alert_message}}, and your bridge's webhook URL. Each fill sends the JSON
-// built from the templates below. Test on a paper/sim account first.
+// Alerts: create ONE alert on this strategy with condition "Order fills and alert() function
+// calls", message {{strategy.order.alert_message}}. For a bridge, add its webhook URL and leave
+// "Manual alerts" off: each fill sends the JSON built from the templates below.
+// For manual trading (for example Apex), turn "Manual alerts" on: each alert is a plain-English
+// instruction (enter now with this stop, move the stop to X, exit now). For Apex use 1 trade a day.
+// Test on a paper/sim account first.
 //
 // Safety check before going live: the entry message asks the bridge to place a broker-side
 // stop at the initial stop. Trailing exits are sent by this script as "exit" messages. In a
@@ -34,6 +37,10 @@ maxTrades = input.int(3, "Max trades per day", minval = 1, group = grpS)
 lastEntryBar = input.int(48, "No new entries from bar # (48 = 13:30)", group = grpS)
 qty       = input.int(1, "Contracts", minval = 1, maxval = 5, group = grpS)
 skipDates = input.string("2026-11-27,2026-12-24", "Dates not to trade (early closes), yyyy-mm-dd", group = grpS)
+
+grpM = "Manual trading"
+manual = input.bool(false, "Manual alerts (plain English instead of webhook JSON)", group = grpM)
+mSymbol = input.string("MNQ", "Symbol named in manual alerts", group = grpM)
 
 grpW = "Webhook messages"
 wTicker = input.string("MNQ1!", "Ticker sent to the bridge", group = grpW)
@@ -61,12 +68,23 @@ var int dayKey = na
 var int tradesAtDayStart = 0
 var float stopLvl = na          // working stop of the open position
 var float pendR = na            // R used for the pending entry orders
+var float sentStop = na         // last stop level announced in a manual alert
 
 f_fill(string tpl, string action, float stopPx) =>
     string s = str.replace_all(tpl, "{{ticker}}", wTicker)
     s := str.replace_all(s, "{{action}}", action)
     s := str.replace_all(s, "{{qty}}", str.tostring(qty))
     str.replace_all(s, "{{stop}}", str.tostring(stopPx, format.mintick))
+
+f_entry(string action, float level, float stopPx, float R) =>
+    if manual
+        string side = action == "buy" ? "LONG: BUY " : "SHORT: SELL "
+        mSymbol + " " + side + str.tostring(qty) + " at market now (broke " + (action == "buy" ? "above " : "below ") + str.tostring(level, format.mintick) + "). Place stop at " + str.tostring(stopPx, format.mintick) + " (risk " + str.tostring(R, "#.00") + " pts = $" + str.tostring(R * syminfo.pointvalue * qty, "#") + ")."
+    else
+        f_fill(wEntry, action, stopPx)
+
+f_exit(string why, float px) =>
+    manual ? mSymbol + " EXIT NOW: " + why + " near " + str.tostring(px, format.mintick) + ". Make sure you are flat and no orders are left working." : f_fill(wExit, "exit", px)
 
 f_round(float px, bool up) =>
     float t = syminfo.mintick
@@ -107,19 +125,25 @@ if inRth
         strategy.cancel("Long")
         strategy.cancel("Short")
         if rthIdx >= 77
-            strategy.close_all(comment = "EOD", alert_message = f_fill(wExit, "exit", close), immediately = true)
+            strategy.close_all(comment = "EOD", alert_message = f_exit("end of day", close), immediately = true)
             stopLvl := na
         else
             if na(stopLvl)
                 stopLvl := pos > 0 ? strategy.position_avg_price - pendR : strategy.position_avg_price + pendR
             if pos > 0
                 stopLvl := math.max(stopLvl, exitLo, close - trailAtr * atr)
-                strategy.exit("XL", from_entry = "Long", stop = f_round(stopLvl, false), comment = "stop", alert_message = f_fill(wExit, "exit", stopLvl))
+                strategy.exit("XL", from_entry = "Long", stop = f_round(stopLvl, false), comment = "stop", alert_message = f_exit("stop hit", stopLvl))
             else
                 stopLvl := math.min(stopLvl, exitHi, close + trailAtr * atr)
-                strategy.exit("XS", from_entry = "Short", stop = f_round(stopLvl, true), comment = "stop", alert_message = f_fill(wExit, "exit", stopLvl))
+                strategy.exit("XS", from_entry = "Short", stop = f_round(stopLvl, true), comment = "stop", alert_message = f_exit("stop hit", stopLvl))
+            float shown = f_round(stopLvl, pos < 0)
+            if manual and (na(sentStop) or math.abs(shown - sentStop) >= syminfo.mintick)
+                if not na(sentStop)
+                    alert(mSymbol + " MOVE STOP to " + str.tostring(shown, format.mintick) + " (" + (pos > 0 ? "long" : "short") + " position, price " + str.tostring(close, format.mintick) + ").", alert.freq_once_per_bar_close)
+                sentStop := shown
     else
         stopLvl := na
+        sentStop := na
 
     // 3) arm or cancel the breakout orders for the NEXT bar
     int nextIdx = rthIdx + 1
@@ -131,10 +155,10 @@ if inRth
         float shortStop = chanLo - syminfo.mintick
         float lsl = f_round(longStop - R, false)
         float ssl = f_round(shortStop + R, true)
-        strategy.entry("Long", strategy.long, qty, stop = longStop, oca_name = "brk", oca_type = strategy.oca.cancel, comment = "L", alert_message = f_fill(wEntry, "buy", lsl))
-        strategy.entry("Short", strategy.short, qty, stop = shortStop, oca_name = "brk", oca_type = strategy.oca.cancel, comment = "S", alert_message = f_fill(wEntry, "sell", ssl))
-        strategy.exit("XL", from_entry = "Long", stop = lsl, comment = "stop", alert_message = f_fill(wExit, "exit", lsl))
-        strategy.exit("XS", from_entry = "Short", stop = ssl, comment = "stop", alert_message = f_fill(wExit, "exit", ssl))
+        strategy.entry("Long", strategy.long, qty, stop = longStop, oca_name = "brk", oca_type = strategy.oca.cancel, comment = "L", alert_message = f_entry("buy", chanHi, lsl, R))
+        strategy.entry("Short", strategy.short, qty, stop = shortStop, oca_name = "brk", oca_type = strategy.oca.cancel, comment = "S", alert_message = f_entry("sell", chanLo, ssl, R))
+        strategy.exit("XL", from_entry = "Long", stop = lsl, comment = "stop", alert_message = f_exit("stop hit", lsl))
+        strategy.exit("XS", from_entry = "Short", stop = ssl, comment = "stop", alert_message = f_exit("stop hit", ssl))
     else if pos == 0
         strategy.cancel("Long")
         strategy.cancel("Short")
@@ -143,7 +167,7 @@ else
     strategy.cancel("Long")
     strategy.cancel("Short")
     if strategy.position_size != 0
-        strategy.close_all(comment = "outside RTH", alert_message = f_fill(wExit, "exit", close), immediately = true)
+        strategy.close_all(comment = "outside RTH", alert_message = f_exit("outside regular hours", close), immediately = true)
 
 // ---------------------------------------------------------------- plots
 float plotHi = na
