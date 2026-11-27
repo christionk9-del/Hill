@@ -1,0 +1,9 @@
+{
+  "ev_threshold": 0.20,
+  "report_threshold": 0.03,
+  "bonus_conversion_threshold": 0.70,
+  "timezone": "America/New_York",
+  "my_books": [],
+  "max_hours_ahead": 48,
+  "promo_feeds": []
+}

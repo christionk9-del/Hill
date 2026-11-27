@@ -1,0 +1,42 @@
+{
+  "_help": "Add the promos your accounts are offered today. The scanner finds the best bet for each. Set active:false to keep one around without using it. Types: profit_boost, bonus_bet, no_sweat, dfs_discount.",
+  "promos": [
+    {
+      "name": "EXAMPLE DraftKings 50% profit boost (NBA)",
+      "active": false,
+      "type": "profit_boost",
+      "book": "draftkings",
+      "boost_pct": 50,
+      "max_stake": 25,
+      "sports": ["basketball_nba"],
+      "markets": ["h2h", "spreads", "totals"],
+      "min_odds": -200
+    },
+    {
+      "name": "EXAMPLE FanDuel $50 bonus bet",
+      "active": false,
+      "type": "bonus_bet",
+      "book": "fanduel",
+      "max_stake": 50,
+      "min_odds": 200
+    },
+    {
+      "name": "EXAMPLE BetMGM no-sweat up to $100",
+      "active": false,
+      "type": "no_sweat",
+      "book": "betmgm",
+      "max_stake": 100,
+      "refund_conversion": 0.70
+    },
+    {
+      "name": "EXAMPLE PrizePicks discounted line",
+      "active": false,
+      "type": "dfs_discount",
+      "book": "prizepicks",
+      "player": "Jayson Tatum",
+      "market": "player_points",
+      "side": "Over",
+      "line": 22.5
+    }
+  ]
+}

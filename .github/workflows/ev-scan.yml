@@ -1,0 +1,44 @@
+name: Daily EV scan
+
+# GitHub cron is UTC only. Two triggers cover 7:30 AM Eastern in both EST
+# (12:30 UTC) and EDT (11:30 UTC); --at-local skips the one that isn't 7 AM
+# local. Change "timezone" in config.json if you're not on Eastern time and
+# adjust these two lines to match.
+on:
+  schedule:
+    - cron: "30 11 * * *"
+    - cron: "30 12 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run scanner
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            python -m ev_scanner --at-local 07:30
+          else
+            python -m ev_scanner
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ev-report
+          path: reports/
+          if-no-files-found: ignore
