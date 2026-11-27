@@ -25,7 +25,8 @@ independent). Show the command you ran in a collapsed or short form so the user 
 ```bash
 S=<skill-dir>/scripts
 python3 $S/kelly.py binary   --p 0.40 --payout 3.0 --bankroll 1000 --p-low 0.35 --p-high 0.45
-python3 $S/kelly.py pickem   --legs 0.80,0.50 --type power --bankroll 1000   # PrizePicks tables built in
+python3 $S/kelly.py pickem   --legs 0.80,0.50 --type power --bankroll 1000   # standard PrizePicks tables
+python3 $S/kelly.py pickem   --legs 0.8,0.5,0.5 --type flex --table "3:2.25,2:0.75"  # exact table from the app
 python3 $S/kelly.py kalshi   --p 0.62 --price 0.55                            # adds the taker fee
 python3 $S/kelly.py american --p 0.55 --odds=-110
 python3 $S/kelly.py devig    --odds=-130,+110                                # fair odds from a two-way line
@@ -33,7 +34,8 @@ python3 $S/kelly.py parlay   --legs 0.6,0.6,0.6 --payout 6 --rho 0.3          # 
 python3 $S/kelly.py multi    --outcomes "0.41:2.0,0.49:0.5,0.10:0"            # any payout table
 python3 $S/kelly.py simulate --p 0.40 --payout 3 --frac 0.033 --bets 156 --bankroll 1000 [--cap 25]
 ```
-Payouts are total return multiples (a winning $10 at 3x returns $30). Use `=` before
+Always use the payout table shown on the user's slip: goblin (easier) lines cut the payout,
+demon (harder) lines raise it, and promos change it. Payouts are total return multiples (a winning 10-dollar entry at 3x returns 30 dollars). Use `=` before
 negative odds.
 
 ## Workflow
@@ -112,7 +114,7 @@ For reference, on a 3x payout full Kelly is 10% of bankroll at +20% EV and 15% a
 Use this structure, keep it short, and lead with the answer:
 
 ```
-**Verdict: BET $X (Y% of bankroll) / BET SMALLER / PASS / NEED: <missing info>**
+**Verdict: BET <stake> (Y% of bankroll) / BET SMALLER / PASS / NEED: <missing info>**
 
 | | |
 |---|---|
@@ -120,7 +122,7 @@ Use this structure, keep it short, and lead with the answer:
 | Break-even probability | 33.3% (3x payout) |
 | EV | +20% (+5% to +40%) |
 | Full Kelly | 10.0% of bankroll |
-| Recommended | 1/3 Kelly = 3.3% → $33 on $1,000; the $25 promo cap binds → $25 |
+| Recommended | 1/3 Kelly = 3.3% → 33 dollars on a 1,000-dollar bankroll; the 25-dollar promo cap binds → 25 dollars |
 | Growth per bet at that size | about +0.5% of bankroll |
 
 **Why:** one or two sentences naming the edge source.
@@ -159,7 +161,7 @@ Offer the ledger whenever the user is placing bets repeatedly:
 ```bash
 python3 $S/ledger.py add --desc "Tatum 19.5+ & Embiid 21.5+ (power)" --stake 25 --payout 3 --p 0.40 --venue PrizePicks --kelly-frac 0.33
 python3 $S/ledger.py settle --id 1 --result win
-python3 $S/ledger.py report        # calibration: predicted vs actual wins, return per $1
+python3 $S/ledger.py report        # calibration: predicted vs actual wins, return per dollar
 ```
 The ledger file defaults to `./bets_log.csv` (or `$THORP_LEDGER`). The report shows whether
 the user's probabilities are calibrated, which decides whether they've earned bigger

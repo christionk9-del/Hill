@@ -11,7 +11,8 @@ multiples, e.g. a PrizePicks 2-pick Power Play returns 3.0x the entry):
   kalshi     --p 0.62 --price 0.55 [--maker]  (buy a contract at `price`; taker fee applied)
   multi      --outcomes "0.41:2.0,0.49:0.5,0.10:0"   (prob:payout pairs; e.g. Flex Play)
   parlay     --legs "0.80,0.50" --payout 3.0 [--rho 0.0]  (legs' win probs; rho = leg correlation)
-  pickem     --legs "0.80,0.50" --type power|flex       (PrizePicks payouts built in)
+  pickem     --legs "0.80,0.50" --type power|flex [--table "3:3.25"]  (standard PrizePicks payouts built in;
+             pass --table with the payouts shown in the app for goblin/demon lines and promos)
   simulate   --p 0.40 --payout 3.0 --frac 0.03 --bets 156 [--bankroll 1000] [--cap 25]
   devig      --odds=-130,+110                (fair probabilities from a two-way market; use "=")
 
@@ -101,7 +102,12 @@ def parlay_prob(ps, rho=0.0):
     return mvn_orthant(z, corr)
 
 
-def pickem_outcomes(ps, kind):
+def parse_table(t):
+    """'3:3.25' or '3:2.25,2:0.75' -> {hits: payout}"""
+    return {int(k): float(v) for k, v in (x.split(":") for x in t.split(","))}
+
+
+def pickem_outcomes(ps, kind, table=None):
     """Distribution of the number of hits for independent legs -> payout table."""
     k = len(ps)
     dist = np.zeros(k + 1)
@@ -109,10 +115,8 @@ def pickem_outcomes(ps, kind):
     for p in ps:                       # convolution of Bernoullis
         dist[1:] = dist[1:] * (1 - p) + dist[:-1] * p
         dist[0] *= (1 - p)
-    if kind == "power":
-        table = {k: POWER[k]}
-    else:
-        table = FLEX[k]
+    if table is None:
+        table = {k: POWER[k]} if kind == "power" else FLEX[k]
     return [(float(dist[h]), table.get(h, 0.0)) for h in range(k + 1)]
 
 
@@ -175,6 +179,8 @@ def main():
     pa.add_argument("--rho", type=float, default=0.0); pa.add_argument("--bankroll", type=float)
     pk = sp.add_parser("pickem"); pk.add_argument("--legs", required=True); pk.add_argument("--type", choices=["power", "flex"], required=True)
     pk.add_argument("--bankroll", type=float)
+    pk.add_argument("--table", help="exact payout table from the app, e.g. '3:3.25' or '3:2.25,2:0.75' "
+                    "(goblin/demon lines and promos change the standard table)")
     s = sp.add_parser("simulate"); s.add_argument("--p", type=float); s.add_argument("--payout", type=float)
     s.add_argument("--outcomes"); s.add_argument("--frac", type=float, required=True); s.add_argument("--bets", type=int, required=True)
     s.add_argument("--bankroll", type=float, default=1000.0); s.add_argument("--cap", type=float)
@@ -202,7 +208,7 @@ def main():
         res = {"joint_prob": pj, "independent_prob": float(np.prod(ps)), **report_binary(pj, args.payout, args.bankroll)}
     elif args.cmd == "pickem":
         ps = [float(x) for x in args.legs.split(",")]
-        outs = pickem_outcomes(ps, args.type)
+        outs = pickem_outcomes(ps, args.type, parse_table(args.table) if args.table else None)
         fk, rows = sizing_table(outs, args.bankroll)
         res = {"outcomes": outs, "ev": ev(outs), "kelly_full": fk, "sizing": rows,
                "note": "assumes independent legs; same-game legs are correlated"}
