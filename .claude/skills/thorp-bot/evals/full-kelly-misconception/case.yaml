@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: full-kelly-misconception
+expected_outcome: |
+  Corrects the claim: on a 3x payout full Kelly is 10% at 20% EV and 15% at 30% EV, so 3% and 5% are about one-third Kelly, consistent with Thorp's fractional-Kelly practice. Runs a 156-bet simulation and reports median, tail outcomes, chance of ending down and drawdowns, ideally also at a lower true EV.

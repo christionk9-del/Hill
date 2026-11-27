@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: correlated-crypto-combo
+expected_outcome: |
+  Notes the combo cost 9.8% vs 0.64% if independent, so Kalshi already prices correlation heavily; computes a correlation-adjusted probability; says one win proves little; warns that every window being correlated means bets aren't independent and 5% per window is too aggressive without a tracked edge; recommends a forward/quote-only test or much smaller size.
