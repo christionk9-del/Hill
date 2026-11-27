@@ -69,6 +69,8 @@ var int tradesAtDayStart = 0
 var float stopLvl = na          // working stop of the open position
 var float pendR = na            // R used for the pending entry orders
 var float sentStop = na         // last stop level announced in a manual alert
+var float pendLsl = na          // initial stops announced with the pending entries
+var float pendSsl = na
 
 f_fill(string tpl, string action, float stopPx) =>
     string s = str.replace_all(tpl, "{{ticker}}", wTicker)
@@ -137,10 +139,11 @@ if inRth
                 stopLvl := math.min(stopLvl, exitHi, close + trailAtr * atr)
                 strategy.exit("XS", from_entry = "Short", stop = f_round(stopLvl, true), comment = "stop", alert_message = f_exit("stop hit", stopLvl))
             float shown = f_round(stopLvl, pos < 0)
-            if manual and (na(sentStop) or math.abs(shown - sentStop) >= syminfo.mintick)
-                if not na(sentStop)
-                    alert(mSymbol + " MOVE STOP to " + str.tostring(shown, format.mintick) + " (" + (pos > 0 ? "long" : "short") + " position, price " + str.tostring(close, format.mintick) + ").", alert.freq_once_per_bar_close)
-                sentStop := shown
+            if na(sentStop)
+                sentStop := pos > 0 ? pendLsl : pendSsl
+            if manual and math.abs(shown - sentStop) >= syminfo.mintick
+                alert(mSymbol + " MOVE STOP to " + str.tostring(shown, format.mintick) + " (" + (pos > 0 ? "long" : "short") + " position, price " + str.tostring(close, format.mintick) + ").", alert.freq_once_per_bar_close)
+            sentStop := shown
     else
         stopLvl := na
         sentStop := na
@@ -155,6 +158,8 @@ if inRth
         float shortStop = chanLo - syminfo.mintick
         float lsl = f_round(longStop - R, false)
         float ssl = f_round(shortStop + R, true)
+        pendLsl := lsl
+        pendSsl := ssl
         strategy.entry("Long", strategy.long, qty, stop = longStop, oca_name = "brk", oca_type = strategy.oca.cancel, comment = "L", alert_message = f_entry("buy", chanHi, lsl, R))
         strategy.entry("Short", strategy.short, qty, stop = shortStop, oca_name = "brk", oca_type = strategy.oca.cancel, comment = "S", alert_message = f_entry("sell", chanLo, ssl, R))
         strategy.exit("XL", from_entry = "Long", stop = lsl, comment = "stop", alert_message = f_exit("stop hit", lsl))
